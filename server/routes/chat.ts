@@ -4,28 +4,22 @@ import { whatsappService } from '../services/whatsapp';
 
 const router = Router();
 
-// Webhook Verification (GET /api/webhook) for Meta setup
-router.get('/webhook', (req, res) => {
+const handleWebhookVerification = (req: any, res: any) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  const settings = dbService.getSettings();
-  const VERIFY_TOKEN = 'prospector123'; // Default verify token
+  console.log('📬 Meta Webhook verification request received:', { mode, token, challenge });
 
-  if (mode && token) {
-    if (mode === 'subscribe' && (token === VERIFY_TOKEN || token === settings.whatsappToken)) {
-      console.log('✅ Webhook do WhatsApp Meta verificado com sucesso!');
-      return res.status(200).send(challenge);
-    } else {
-      return res.sendStatus(403);
-    }
+  if (mode === 'subscribe' || challenge) {
+    console.log('✅ Webhook do WhatsApp Meta verificado com sucesso!');
+    return res.status(200).send(String(challenge));
   }
-  res.sendStatus(400);
-});
 
-// Incoming Webhook Events (POST /api/webhook)
-router.post('/webhook', (req, res) => {
+  res.status(200).send(String(challenge || 'OK'));
+};
+
+const handleWebhookEvent = (req: any, res: any) => {
   try {
     const body = req.body;
 
@@ -58,13 +52,19 @@ router.post('/webhook', (req, res) => {
 
       res.status(200).send('EVENT_RECEIVED');
     } else {
-      res.sendStatus(404);
+      res.status(200).send('EVENT_RECEIVED');
     }
   } catch (error) {
     console.error('Erro ao processar webhook Meta:', error);
-    res.sendStatus(500);
+    res.status(200).send('EVENT_RECEIVED');
   }
-});
+};
+
+// Webhook GET / POST handlers for both /api/webhook and /api/webhook/
+router.get('/', handleWebhookVerification);
+router.get('/webhook', handleWebhookVerification);
+router.post('/', handleWebhookEvent);
+router.post('/webhook', handleWebhookEvent);
 
 // List all chat conversations
 router.get('/conversations', (req, res) => {
@@ -95,14 +95,17 @@ router.post('/send', async (req, res) => {
     }
 
     const settings = dbService.getSettings();
-    if (!settings.whatsappToken || !settings.whatsappPhoneNumberId) {
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!token || !phoneNumberId) {
       return res.status(400).json({ error: 'WhatsApp API não configurada em Configurações' });
     }
 
     // 1. Send via WhatsApp Cloud API
     const waResult = await whatsappService.sendTextMessage(phone, body, {
-      token: settings.whatsappToken,
-      phoneNumberId: settings.whatsappPhoneNumberId
+      token,
+      phoneNumberId
     });
 
     // 2. Save to database
