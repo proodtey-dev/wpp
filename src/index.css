@@ -662,8 +662,9 @@ table.data-table {
 }
 
 .delivery-icon { font-size: 12px; }
-.delivery-icon.sent { color: rgba(255,255,255,0.5); }
+.delivery-icon.sent { color: rgba(255,255,255,0.4); }
 .delivery-icon.delivered { color: #22c55e; }
+.delivery-icon.read { color: #3b82f6; }
 .delivery-icon.failed { color: #ef4444; }
 
 .chat-input-bar {

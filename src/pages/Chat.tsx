@@ -27,9 +27,35 @@ const formatTime = (ts: string) => {
   } catch { return ''; }
 };
 
+// Toca um som suave de notificação usando Web Audio API (sem arquivo externo)
+const playNotificationSound = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    // Dois bips suaves: primeira nota e segunda nota mais alta
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.setValueAtTime(780, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.22);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+  } catch {}
+};
+
+// Ícone de entrega:
+// Clock  = enviando (cinza)
+// ✓ cinza = enviado para o WhatsApp
+// ✓✓ verde = entregue no celular do cliente
+// ✓✓ azul  = lido pelo cliente
 const DeliveryIcon = ({ status }: { status: string }) => {
   if (status === 'failed') return <X size={12} className="delivery-icon failed" />;
-  if (status === 'delivered' || status === 'read') return <CheckCheck size={12} className="delivery-icon delivered" />;
+  if (status === 'read') return <CheckCheck size={12} className="delivery-icon read" />;
+  if (status === 'delivered') return <CheckCheck size={12} className="delivery-icon delivered" />;
   if (status === 'sent') return <Check size={12} className="delivery-icon sent" />;
   return <Clock size={10} className="delivery-icon sent" />;
 };
@@ -88,7 +114,12 @@ const Chat = () => {
       es.addEventListener('new_message', (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
 
-        // Update conversations list
+        // Toca som de notificação só quando é mensagem recebida (do cliente)
+        if (msg.sender === 'user') {
+          playNotificationSound();
+        }
+
+        // Atualiza lista de conversas
         setConversations(prev => {
           const existing = prev.find(c => c.phone === msg.phone);
           if (existing) {
@@ -100,10 +131,10 @@ const Chat = () => {
           return [{ phone: msg.phone, contactName: msg.contactName || 'Cliente', lastMessage: msg.body, timestamp: msg.timestamp, unreadCount: msg.sender === 'user' ? 1 : 0 }, ...prev];
         });
 
-        // If this is the active conversation, add message
+        // Se é a conversa ativa, adiciona a mensagem
         if (selectedPhoneRef.current === msg.phone) {
           setMessages(prev => {
-            // avoid duplicates
+            // evita duplicatas
             if (prev.find(m => m.id === msg.id || (m.body === msg.body && m.sender === msg.sender && Math.abs(new Date(m.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 2000))) {
               return prev;
             }
