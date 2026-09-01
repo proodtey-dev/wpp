@@ -1,13 +1,30 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { Lead, Campaign, Message, Settings } from '../types';
 
-// Em produção (Render com Persistent Disk em /data), usar /data/prospector.db
-// Em desenvolvimento, usar ./prospector.db local
-const DB_PATH = process.env.NODE_ENV === 'production'
-  ? '/data/prospector.db'
-  : path.join(process.cwd(), 'prospector.db');
+// Determinar path do banco de dados
+// Tenta usar /data (Render Persistent Disk) ou SQLITE_PATH env, senão usa cwd
+function getDbPath(): string {
+  const envPath = process.env.SQLITE_PATH;
+  if (envPath) return envPath;
 
+  if (process.env.NODE_ENV === 'production') {
+    // Tenta criar /data se não existir
+    try {
+      if (!fs.existsSync('/data')) {
+        fs.mkdirSync('/data', { recursive: true });
+      }
+      return '/data/prospector.db';
+    } catch {
+      // Fallback para diretório do projeto
+      return path.join(process.cwd(), 'prospector.db');
+    }
+  }
+  return path.join(process.cwd(), 'prospector.db');
+}
+
+const DB_PATH = getDbPath();
 console.log(`📂 Banco de dados: ${DB_PATH}`);
 
 const db = new Database(DB_PATH);
