@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { NICHE_TYPES } from '../lib/utils';
 
 interface MapSearchProps {
@@ -9,33 +9,14 @@ interface MapSearchProps {
 }
 
 const ESTADOS_BR = [
-  { uf: 'GO', nome: 'Goiás' },
-  { uf: 'SP', nome: 'São Paulo' },
-  { uf: 'MG', nome: 'Minas Gerais' },
-  { uf: 'RJ', nome: 'Rio de Janeiro' },
-  { uf: 'PR', nome: 'Paraná' },
-  { uf: 'RS', nome: 'Rio Grande do Sul' },
-  { uf: 'SC', nome: 'Santa Catarina' },
-  { uf: 'DF', nome: 'Distrito Federal' },
-  { uf: 'BA', nome: 'Bahia' },
-  { uf: 'CE', nome: 'Ceará' },
-  { uf: 'PE', nome: 'Pernambuco' },
-  { uf: 'MA', nome: 'Maranhão' },
-  { uf: 'ES', nome: 'Espírito Santo' },
-  { uf: 'MT', nome: 'Mato Grosso' },
-  { uf: 'MS', nome: 'Mato Grosso do Sul' },
-  { uf: 'PA', nome: 'Pará' },
-  { uf: 'PB', nome: 'Paraíba' },
-  { uf: 'RN', nome: 'Rio Grande do Norte' },
-  { uf: 'AL', nome: 'Alagoas' },
-  { uf: 'PI', nome: 'Piauí' },
-  { uf: 'SE', nome: 'Sergipe' },
-  { uf: 'AM', nome: 'Amazonas' },
-  { uf: 'RO', nome: 'Rondônia' },
-  { uf: 'TO', nome: 'Tocantins' },
-  { uf: 'AC', nome: 'Acre' },
-  { uf: 'AP', nome: 'Amapá' },
-  { uf: 'RR', nome: 'Roraima' },
+  { uf: 'GO', nome: 'Goiás' }, { uf: 'SP', nome: 'São Paulo' }, { uf: 'MG', nome: 'Minas Gerais' },
+  { uf: 'RJ', nome: 'Rio de Janeiro' }, { uf: 'DF', nome: 'Distrito Federal' }, { uf: 'PR', nome: 'Paraná' },
+  { uf: 'RS', nome: 'Rio Grande do Sul' }, { uf: 'SC', nome: 'Santa Catarina' }, { uf: 'BA', nome: 'Bahia' },
+  { uf: 'CE', nome: 'Ceará' }, { uf: 'PE', nome: 'Pernambuco' }, { uf: 'MA', nome: 'Maranhão' },
+  { uf: 'ES', nome: 'Espírito Santo' }, { uf: 'MT', nome: 'Mato Grosso' }, { uf: 'MS', nome: 'Mato Grosso do Sul' },
+  { uf: 'PA', nome: 'Pará' }, { uf: 'PB', nome: 'Paraíba' }, { uf: 'RN', nome: 'Rio Grande do Norte' },
+  { uf: 'AL', nome: 'Alagoas' }, { uf: 'PI', nome: 'Piauí' }, { uf: 'SE', nome: 'Sergipe' },
+  { uf: 'AM', nome: 'Amazonas' }, { uf: 'TO', nome: 'Tocantins' },
 ];
 
 const MapSearch: React.FC<MapSearchProps> = ({ onSearch, isLoading, initialType = '' }) => {
@@ -47,115 +28,90 @@ const MapSearch: React.FC<MapSearchProps> = ({ onSearch, isLoading, initialType 
   const [type, setType] = useState(initialType);
   const [loadingCidades, setLoadingCidades] = useState(false);
 
-  // Buscar cidades do estado selecionado usando a API oficial do IBGE
   useEffect(() => {
     if (!selectedUf) return;
     setLoadingCidades(true);
-
     fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${selectedUf}/municipios?orderBy=nome`)
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
           const nomes = data.map((c: any) => c.nome);
           setCidades(nomes);
-          if (nomes.length > 0) {
-            setSelectedCidade(nomes[0]);
-          }
+          if (nomes.length > 0) setSelectedCidade(nomes[0]);
         }
       })
       .catch(() => {})
       .finally(() => setLoadingCidades(false));
   }, [selectedUf]);
 
+  useEffect(() => {
+    if (initialType) setType(initialType);
+  }, [initialType]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const queryLocation = bairro.trim() 
-      ? `${bairro}, ${selectedCidade}, ${selectedUf}, Brasil` 
+    const queryLocation = bairro.trim()
+      ? `${bairro}, ${selectedCidade}, ${selectedUf}, Brasil`
       : `${selectedCidade}, ${selectedUf}, Brasil`;
-      
     onSearch({ query: queryLocation, radius, type });
   };
 
   return (
-    <form 
-      onSubmit={handleSearch}
-      className="bg-[rgba(255,255,255,0.02)] backdrop-blur-md rounded-2xl p-6 border border-[rgba(255,255,255,0.08)] shadow-lg"
-      id="map-search"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-        
-        {/* Estado (UF) */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">Estado</label>
-          <select
-            value={selectedUf}
-            onChange={(e) => setSelectedUf(e.target.value)}
-            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-3 text-white outline-none focus:border-[#25D366] transition-all text-sm font-semibold"
-          >
+    <form onSubmit={handleSearch} className="card" style={{ padding: 20, marginBottom: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, alignItems: 'end' }}>
+
+        <div className="form-group">
+          <label className="form-label">Estado</label>
+          <select className="input" value={selectedUf} onChange={e => setSelectedUf(e.target.value)}>
             {ESTADOS_BR.map(e => (
-              <option key={e.uf} value={e.uf} className="bg-[#12121a]">{e.uf} - {e.nome}</option>
+              <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>
             ))}
           </select>
         </div>
 
-        {/* Cidade */}
-        <div className="md:col-span-3">
-          <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">
-            Cidade {loadingCidades && <span className="text-[10px] text-[#25D366]">(carregando...)</span>}
+        <div className="form-group">
+          <label className="form-label">
+            Cidade {loadingCidades && <span style={{ color: 'var(--green)', fontSize: 10 }}>(carregando…)</span>}
           </label>
-          <select
-            value={selectedCidade}
-            onChange={(e) => setSelectedCidade(e.target.value)}
-            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-3 text-white outline-none focus:border-[#25D366] transition-all text-sm font-semibold"
-          >
-            {cidades.map(c => (
-              <option key={c} value={c} className="bg-[#12121a]">{c}</option>
-            ))}
+          <select className="input" value={selectedCidade} onChange={e => setSelectedCidade(e.target.value)}>
+            {cidades.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
-        {/* Bairro (opcional) */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">Bairro (Opcional)</label>
+        <div className="form-group">
+          <label className="form-label">Bairro (Opcional)</label>
           <input
+            className="input"
             type="text"
             value={bairro}
-            onChange={(e) => setBairro(e.target.value)}
-            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-3 text-white outline-none focus:border-[#25D366] transition-all text-sm"
-            placeholder="Ex: Bueno, Setor Oeste..."
+            onChange={e => setBairro(e.target.value)}
+            placeholder="Ex: Setor Bueno..."
           />
         </div>
 
-        {/* Tipo de Negócio */}
-        <div className="md:col-span-3">
-          <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">Tipo de Negócio</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-3 text-white outline-none focus:border-[#25D366] transition-all text-sm font-semibold"
-          >
-            <option value="" className="bg-[#12121a]">Todos os nichos</option>
+        <div className="form-group" style={{ minWidth: 180 }}>
+          <label className="form-label">Tipo de Negócio</label>
+          <select className="input" value={type} onChange={e => setType(e.target.value)}>
+            <option value="">Todos os nichos</option>
             {NICHE_TYPES.map(t => (
-              <option key={t.value} value={t.value} className="bg-[#12121a]">{t.emoji} {t.label}</option>
+              <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
             ))}
           </select>
         </div>
 
-        {/* Botão Buscar */}
-        <div className="md:col-span-2">
+        <div style={{ alignSelf: 'end' }}>
           <button
             type="submit"
             disabled={isLoading || !selectedCidade}
-            className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(37,211,102,0.2)] hover:shadow-[0_0_25px_rgba(37,211,102,0.4)] text-sm"
+            className="btn btn-primary"
+            style={{ width: '100%', height: 36, justifyContent: 'center', fontSize: 13 }}
           >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <><Search size={18} /> Buscar</>
-            )}
+            {isLoading
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Buscando…</>
+              : <><Search size={13} /> Buscar</>
+            }
           </button>
         </div>
-
       </div>
     </form>
   );

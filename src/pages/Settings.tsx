@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import WhatsAppPreview from '../components/WhatsAppPreview';
+import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck, Settings as SettingsIcon } from 'lucide-react';
 import { DEFAULT_MESSAGE } from '../lib/utils';
 import { getSettings, updateSettings, testWhatsAppApi } from '../lib/api';
 
 const Settings = () => {
   const [googleKey, setGoogleKey] = useState('');
   const [showGoogle, setShowGoogle] = useState(false);
-  const [googleStatus, setGoogleStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-
   const [whatsappToken, setWhatsappToken] = useState('');
   const [phoneId, setPhoneId] = useState('');
   const [wabaId, setWabaId] = useState('');
   const [showWa, setShowWa] = useState(false);
   const [waStatus, setWaStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-
   const [template, setTemplate] = useState(DEFAULT_MESSAGE);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     getSettings().then(data => {
@@ -30,22 +26,16 @@ const Settings = () => {
     }).catch(() => {});
   }, []);
 
-  const handleTestGoogle = () => {
-    setGoogleStatus('testing');
-    setTimeout(() => {
-      setGoogleStatus(googleKey.trim().length > 10 ? 'success' : 'error');
-    }, 800);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
   };
 
   const handleTestWa = async () => {
     setWaStatus('testing');
     try {
       const res = await testWhatsAppApi().catch(() => null);
-      if (res && res.success) {
-        setWaStatus('success');
-      } else {
-        setWaStatus(whatsappToken.length > 10 && phoneId.length > 5 ? 'success' : 'error');
-      }
+      setWaStatus(res?.success ? 'success' : 'error');
     } catch {
       setWaStatus('error');
     }
@@ -54,212 +44,183 @@ const Settings = () => {
   const handleSaveAll = async () => {
     await updateSettings({
       googleMapsApiKey: googleKey,
-      whatsappToken: whatsappToken,
+      whatsappToken,
       whatsappPhoneNumberId: phoneId,
       whatsappWabaId: wabaId,
       defaultMessage: template
     }).catch(() => {});
-
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    showToast('Configurações salvas com sucesso!');
   };
 
-  return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto animate-in fade-in duration-500 pb-20">
+  const SectionCard = ({ children, accent }: { children: React.ReactNode; accent?: string }) => (
+    <div className="card" style={{ padding: 24, borderColor: accent ? `${accent}30` : undefined }}>
+      {children}
+    </div>
+  );
 
-      {savedSuccess && (
-        <div className="fixed top-6 right-6 z-50 bg-[#25D366] text-white px-5 py-3 rounded-xl font-medium shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5">
-          <CheckCircle2 size={20} />
-          Configurações salvas com sucesso!
+  const SectionHeader = ({ icon, title, subtitle, iconBg }: any) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div style={{ width: 38, height: 38, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{subtitle}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      {toast && (
+        <div className="toast success">
+          <CheckCircle2 size={16} style={{ color: 'var(--green)', flexShrink: 0 }} />
+          {toast}
         </div>
       )}
 
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Configurações de API</h1>
-          <p className="text-[rgba(255,255,255,0.6)]">Configure as credenciais oficiais da Meta e Google Maps.</p>
+      <div className="page-header" style={{ paddingBottom: 24 }}>
+        <div className="page-eyebrow"><SettingsIcon size={12} /> Sistema</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 className="page-title">Configurações</h1>
+            <p className="page-subtitle">Credenciais das APIs e template de mensagem.</p>
+          </div>
+          <button className="btn btn-primary btn-lg" onClick={handleSaveAll}>
+            <Save size={15} /> Salvar Tudo
+          </button>
         </div>
-        <button 
-          onClick={handleSaveAll}
-          className="hidden md:flex px-6 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white font-bold transition-all items-center gap-2 shadow-[0_0_20px_rgba(37,211,102,0.3)]"
-        >
-          <Save size={18} /> Salvar Tudo
-        </button>
       </div>
 
-      <div className="space-y-8">
+      <div style={{ padding: '0 32px 40px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
 
-        {/* WhatsApp Official Cloud API Meta */}
-        <section className="bg-[rgba(255,255,255,0.03)] border border-[rgba(37,211,102,0.2)] rounded-2xl p-6 md:p-8 shadow-[0_0_30px_rgba(37,211,102,0.05)]">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-[rgba(37,211,102,0.12)] rounded-xl text-[#25D366]">
-              <ShieldCheck size={26} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">WhatsApp Business Cloud API (Oficial Meta)</h2>
-                <span className="text-[10px] bg-[#25D366]/20 text-[#25D366] px-2 py-0.5 rounded-full font-bold uppercase">Oficial</span>
-              </div>
-              <p className="text-sm text-[rgba(255,255,255,0.5)]">Insira as credenciais geradas no Meta for Developers</p>
-            </div>
-          </div>
+        {/* WhatsApp API */}
+        <SectionCard accent="var(--green)">
+          <SectionHeader
+            icon={<ShieldCheck size={18} style={{ color: 'var(--green)' }} />}
+            iconBg="var(--green-dim)"
+            title="WhatsApp Business Cloud API"
+            subtitle="Credenciais geradas no Meta for Developers"
+          />
 
-          <div className="max-w-2xl space-y-5">
-
-            <div>
-              <label className="block text-sm font-medium text-[rgba(255,255,255,0.8)] mb-2">
-                1. Identificação do número de telefone (Phone Number ID)
-              </label>
-              <input 
-                type="text" 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Phone Number ID</label>
+              <input
+                className="input"
+                type="text"
                 value={phoneId}
                 onChange={e => setPhoneId(e.target.value)}
-                placeholder="Ex: 548392019482710"
-                className="w-full bg-[rgba(0,0,0,0.3)] border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-white outline-none focus:border-[#25D366] transition-all font-mono text-sm"
+                placeholder="Ex: 1280543321810380"
+                style={{ fontFamily: 'monospace', fontSize: 12 }}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[rgba(255,255,255,0.8)] mb-2">
-                2. Token de Acesso Temporário / Permanente (Access Token)
-              </label>
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <input 
-                    type={showWa ? "text" : "password"} 
+            <div className="form-group">
+              <label className="form-label">Token de Acesso (Access Token)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    className="input"
+                    type={showWa ? 'text' : 'password'}
                     value={whatsappToken}
                     onChange={e => setWhatsappToken(e.target.value)}
-                    placeholder="EAA..."
-                    className="w-full bg-[rgba(0,0,0,0.3)] border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-white outline-none focus:border-[#25D366] transition-all font-mono text-sm"
+                    placeholder="EAAxxxxxxx..."
+                    style={{ fontFamily: 'monospace', fontSize: 12, paddingRight: 36 }}
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowWa(!showWa)}
-                    className="absolute right-3 top-3.5 text-[rgba(255,255,255,0.4)] hover:text-white transition-colors"
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}
                   >
-                    {showWa ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showWa ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
-                <button 
-                  onClick={handleTestWa}
-                  className="px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.15)] transition-colors whitespace-nowrap text-sm font-medium"
-                >
-                  {waStatus === 'testing' ? 'Testando...' : 'Testar Conexão'}
+                <button className="btn btn-secondary" onClick={handleTestWa} style={{ flexShrink: 0 }}>
+                  {waStatus === 'testing' ? 'Testando…' : 'Testar'}
                 </button>
               </div>
-
               {waStatus === 'success' && (
-                <div className="mt-3 text-sm text-[#25D366] flex items-center gap-1 font-medium">
-                  <CheckCircle2 size={16} /> WhatsApp API conectada e pronta!
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--green)', marginTop: 4 }}>
+                  <CheckCircle2 size={13} /> API conectada com sucesso!
                 </div>
               )}
               {waStatus === 'error' && (
-                <div className="mt-3 text-sm text-[#EF4444] flex items-center gap-1 font-medium">
-                  <XCircle size={16} /> Falha ao conectar. Verifique o Token e o Phone Number ID.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--red)', marginTop: 4 }}>
+                  <XCircle size={13} /> Falha — verifique o Token e o Phone Number ID.
                 </div>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[rgba(255,255,255,0.8)] mb-2">
-                3. Identificação da conta do WhatsApp Business (WABA ID) — Opcional
-              </label>
-              <input 
-                type="text" 
+            <div className="form-group">
+              <label className="form-label">WABA ID (WhatsApp Business Account ID) — Opcional</label>
+              <input
+                className="input"
+                type="text"
                 value={wabaId}
                 onChange={e => setWabaId(e.target.value)}
-                placeholder="Ex: 965674645829238"
-                className="w-full bg-[rgba(0,0,0,0.3)] border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-white outline-none focus:border-[#25D366] transition-all font-mono text-sm"
+                placeholder="Ex: 1394332478791215"
+                style={{ fontFamily: 'monospace', fontSize: 12 }}
               />
             </div>
-
           </div>
-        </section>
+        </SectionCard>
 
         {/* Google Maps API */}
-        <section className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 md:p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-[rgba(59,130,246,0.1)] rounded-xl text-[#3B82F6]">
-              <Key size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white">Google Maps API (Opcional)</h2>
-              <p className="text-sm text-[rgba(255,255,255,0.5)]">Se não preencher, o sistema usa busca gratuita via OpenStreetMap</p>
-            </div>
-          </div>
-
-          <div className="max-w-2xl">
-            <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">API Key</label>
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <input 
-                  type={showGoogle ? "text" : "password"} 
-                  value={googleKey}
-                  onChange={e => setGoogleKey(e.target.value)}
-                  placeholder="AIzaSyB..."
-                  className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-3 text-white outline-none focus:border-[#3B82F6] transition-all"
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowGoogle(!showGoogle)}
-                  className="absolute right-3 top-3.5 text-[rgba(255,255,255,0.4)] hover:text-white transition-colors"
-                >
-                  {showGoogle ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              <button 
-                onClick={handleTestGoogle}
-                className="px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors whitespace-nowrap text-sm"
+        <SectionCard>
+          <SectionHeader
+            icon={<Key size={18} style={{ color: 'var(--blue)' }} />}
+            iconBg="rgba(59,130,246,0.12)"
+            title="Google Maps API"
+            subtitle="Opcional — sem chave, usa busca gratuita via OpenStreetMap"
+          />
+          <div className="form-group">
+            <label className="form-label">API Key</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="input"
+                type={showGoogle ? 'text' : 'password'}
+                value={googleKey}
+                onChange={e => setGoogleKey(e.target.value)}
+                placeholder="AIzaSyB..."
+                style={{ fontFamily: 'monospace', fontSize: 12, paddingRight: 36 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowGoogle(!showGoogle)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}
               >
-                {googleStatus === 'testing' ? 'Testando...' : 'Testar Conexão'}
+                {showGoogle ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
-            
-            {googleStatus === 'success' && (
-              <div className="mt-3 text-sm text-[#25D366] flex items-center gap-1 font-medium">
-                <CheckCircle2 size={16} /> Conexão Google OK!
-              </div>
-            )}
           </div>
-        </section>
+        </SectionCard>
 
-        {/* Template Padrão */}
-        <section className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.08)] rounded-2xl p-6 md:p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-[rgba(245,158,11,0.1)] rounded-xl text-[#F59E0B]">
-              <MessageSquare size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white">Modelo Padrão de Mensagem</h2>
-              <p className="text-sm text-[rgba(255,255,255,0.5)]">Será pré-carregado ao enviar propostas</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1">
-              <textarea 
-                value={template}
-                onChange={e => setTemplate(e.target.value)}
-                className="w-full h-64 bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-xl px-4 py-4 text-white outline-none focus:border-[#F59E0B] transition-all resize-none text-sm leading-relaxed"
-              />
-              <div className="mt-3 flex gap-2">
-                <span className="text-xs px-2 py-1 bg-[rgba(255,255,255,0.05)] rounded border border-[rgba(255,255,255,0.1)] text-white font-mono">{`{nome}`}</span>
-                <span className="text-xs text-[rgba(255,255,255,0.5)] mt-1">= Nome da empresa</span>
-              </div>
-            </div>
-            
-            <div className="w-full lg:w-[350px]">
-              <h3 className="text-sm font-medium text-[rgba(255,255,255,0.5)] mb-3">Pré-visualização</h3>
-              <WhatsAppPreview message={template} businessName="Clínica Exemplo" />
+        {/* Template */}
+        <SectionCard>
+          <SectionHeader
+            icon={<MessageSquare size={18} style={{ color: '#f59e0b' }} />}
+            iconBg="rgba(245,158,11,0.12)"
+            title="Template de Mensagem Padrão"
+            subtitle="Pré-carregado ao enviar propostas via campanha"
+          />
+          <div className="form-group">
+            <label className="form-label">Mensagem</label>
+            <textarea
+              className="input textarea"
+              value={template}
+              onChange={e => setTemplate(e.target.value)}
+              style={{ minHeight: 120, fontSize: 13 }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <span style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--bg-4)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px', color: 'var(--green)' }}>{'{nome}'}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>= Nome da empresa prospectada</span>
             </div>
           </div>
-        </section>
+        </SectionCard>
 
-        <button 
-          onClick={handleSaveAll}
-          className="md:hidden w-full flex justify-center px-6 py-4 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white font-bold transition-colors items-center gap-2"
-        >
-          <Save size={20} /> Salvar Configurações
+        <button className="btn btn-primary btn-lg" onClick={handleSaveAll} style={{ width: '100%', justifyContent: 'center' }}>
+          <Save size={16} /> Salvar Configurações
         </button>
       </div>
     </div>

@@ -2,7 +2,19 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { Lead, Campaign, Message, Settings } from '../types';
 
-const db = new Database(path.join(process.cwd(), 'prospector.db'));
+// Em produção (Render com Persistent Disk em /data), usar /data/prospector.db
+// Em desenvolvimento, usar ./prospector.db local
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/data/prospector.db'
+  : path.join(process.cwd(), 'prospector.db');
+
+console.log(`📂 Banco de dados: ${DB_PATH}`);
+
+const db = new Database(DB_PATH);
+
+// Melhorar performance SQLite
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
 
 // Inicializar banco de dados
 db.exec(`
@@ -56,8 +68,10 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     phone TEXT NOT NULL,
     contactName TEXT,
-    sender TEXT NOT NULL, -- 'user' (cliente) ou 'me' (minha resposta)
+    sender TEXT NOT NULL,
     body TEXT NOT NULL,
+    waMessageId TEXT,
+    deliveryStatus TEXT DEFAULT 'sent',
     status TEXT DEFAULT 'unread',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -84,9 +98,9 @@ export const dbService = {
 
   getAllLeads: (status?: string): Lead[] => {
     if (status) {
-      return db.prepare('SELECT * FROM leads WHERE status = ?').all(status) as Lead[];
+      return db.prepare('SELECT * FROM leads WHERE status = ? ORDER BY createdAt DESC').all(status) as Lead[];
     }
-    return db.prepare('SELECT * FROM leads').all() as Lead[];
+    return db.prepare('SELECT * FROM leads ORDER BY createdAt DESC').all() as Lead[];
   },
 
   getLeadById: (id: number): Lead | undefined => {
@@ -122,7 +136,7 @@ export const dbService = {
   },
 
   getAllCampaigns: (): Campaign[] => {
-    return db.prepare('SELECT * FROM campaigns').all() as Campaign[];
+    return db.prepare('SELECT * FROM campaigns ORDER BY createdAt DESC').all() as Campaign[];
   },
 
   getCampaignById: (id: number): Campaign | undefined => {
@@ -155,33 +169,59 @@ export const dbService = {
   },
 
   // Chat / CRM
-  saveChatMessage: (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string }) => {
+  saveChatMessage: (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string }) => {
     const stmt = db.prepare(`
-      INSERT INTO chat_messages (phone, contactName, sender, body)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(msg.phone.replace(/\D/g, ''), msg.contactName || null, msg.sender, msg.body);
+    stmt.run(
+      msg.phone.replace(/\D/g, ''),
+      msg.contactName || null,
+      msg.sender,
+      msg.body,
+      msg.waMessageId || null,
+      msg.deliveryStatus || 'sent'
+    );
+  },
+
+  updateChatMessageDelivery: (waMessageId: string, deliveryStatus: string) => {
+    db.prepare('UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?').run(deliveryStatus, waMessageId);
   },
 
   getConversations: () => {
     return db.prepare(`
       SELECT 
-        phone,
-        contactName,
-        body as lastMessage,
-        timestamp,
-        sender,
-        SUM(CASE WHEN status = 'unread' AND sender = 'user' THEN 1 ELSE 0 END) as unreadCount
-      FROM chat_messages
-      GROUP BY phone
-      ORDER BY timestamp DESC
+        cm.phone,
+        cm.contactName,
+        cm.body as lastMessage,
+        cm.timestamp,
+        cm.sender,
+        COUNT(CASE WHEN cm2.status = 'unread' AND cm2.sender = 'user' THEN 1 END) as unreadCount
+      FROM chat_messages cm
+      INNER JOIN (
+        SELECT phone, MAX(id) as maxId
+        FROM chat_messages
+        GROUP BY phone
+      ) latest ON cm.phone = latest.phone AND cm.id = latest.maxId
+      LEFT JOIN chat_messages cm2 ON cm2.phone = cm.phone AND cm2.status = 'unread' AND cm2.sender = 'user'
+      GROUP BY cm.phone
+      ORDER BY cm.timestamp DESC
     `).all();
   },
 
   getChatMessagesByPhone: (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    db.prepare("UPDATE chat_messages SET status = 'read' WHERE phone = ?").run(cleanPhone);
+    db.prepare("UPDATE chat_messages SET status = 'read' WHERE phone = ? AND sender = 'user'").run(cleanPhone);
     return db.prepare("SELECT * FROM chat_messages WHERE phone = ? ORDER BY timestamp ASC").all(cleanPhone);
+  },
+
+  getLatestChatMessageId: (): number => {
+    const row = db.prepare('SELECT MAX(id) as maxId FROM chat_messages').get() as any;
+    return row?.maxId || 0;
+  },
+
+  getNewChatMessages: (sinceId: number) => {
+    return db.prepare('SELECT * FROM chat_messages WHERE id > ? ORDER BY timestamp ASC').all(sinceId);
   },
 
   // Configurações
@@ -197,7 +237,7 @@ export const dbService = {
   setSetting: (key: string, value: string) => {
     db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
   },
-  
+
   updateSettings: (settings: Partial<Settings>) => {
     const stmt = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
     const transaction = db.transaction((settings: Partial<Settings>) => {

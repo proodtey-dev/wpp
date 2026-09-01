@@ -1,8 +1,50 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { dbService } from '../services/database';
 import { whatsappService } from '../services/whatsapp';
 
 const router = Router();
+
+// SSE clients store
+const sseClients: Set<Response> = new Set();
+
+// Broadcast to all SSE clients
+export const broadcastToSSE = (event: string, data: any) => {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  sseClients.forEach(client => {
+    try {
+      client.write(payload);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  });
+};
+
+// SSE Stream endpoint for real-time chat updates
+router.get('/stream', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  // Add client to set
+  sseClients.add(res);
+
+  // Send a heartbeat every 25s to keep connection alive
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch (e) {
+      clearInterval(heartbeat);
+    }
+  }, 25000);
+
+  // Remove client when disconnected
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
+  });
+});
 
 const handleWebhookVerification = (req: any, res: any) => {
   const mode = req.query['hub.mode'];
@@ -28,25 +70,52 @@ const handleWebhookEvent = (req: any, res: any) => {
       const changes = entry?.changes?.[0];
       const value = changes?.value;
 
-      // Se for uma mensagem recebida de um cliente
+      // Incoming message from customer
       if (value?.messages?.[0]) {
         const msgObj = value.messages[0];
         const fromPhone = msgObj.from;
         const contactName = value.contacts?.[0]?.profile?.name || 'Cliente';
         const msgText = msgObj.text?.body || msgObj.caption || '[Mídia / Botão]';
 
-        // Salva a mensagem recebida no chat CRM
         dbService.saveChatMessage({
           phone: fromPhone,
           contactName,
           sender: 'user',
-          body: msgText
+          body: msgText,
+          waMessageId: msgObj.id,
+          deliveryStatus: 'received'
         });
 
-        // Atualiza status do lead se existir
+        // Update lead status if exists
         const lead = dbService.getAllLeads().find(l => l.phone && l.phone.replace(/\D/g, '') === fromPhone);
         if (lead && lead.id) {
           dbService.updateLead(lead.id, { status: 'respondeu' });
+        }
+
+        // Broadcast new message to all SSE clients in real time
+        broadcastToSSE('new_message', {
+          phone: fromPhone,
+          contactName,
+          sender: 'user',
+          body: msgText,
+          timestamp: new Date().toISOString(),
+          deliveryStatus: 'received'
+        });
+      }
+
+      // Delivery/read status updates from Meta
+      if (value?.statuses?.[0]) {
+        const statusUpdate = value.statuses[0];
+        const { id: waMessageId, status, errors } = statusUpdate;
+
+        if (waMessageId) {
+          const deliveryStatus = errors ? 'failed' : status;
+          dbService.updateChatMessageDelivery(waMessageId, deliveryStatus);
+
+          broadcastToSSE('message_status', {
+            waMessageId,
+            deliveryStatus
+          });
         }
       }
 
@@ -60,7 +129,7 @@ const handleWebhookEvent = (req: any, res: any) => {
   }
 };
 
-// Webhook GET / POST handlers for both /api/webhook and /api/webhook/
+// Webhook GET / POST handlers
 router.get('/', handleWebhookVerification);
 router.get('/webhook', handleWebhookVerification);
 router.post('/', handleWebhookEvent);
@@ -99,24 +168,39 @@ router.post('/send', async (req, res) => {
     const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
 
     if (!token || !phoneNumberId) {
-      return res.status(400).json({ error: 'WhatsApp API não configurada em Configurações' });
+      return res.status(400).json({ error: 'WhatsApp API não configurada' });
     }
 
-    // 1. Send via WhatsApp Cloud API
+    // Send via WhatsApp Cloud API
     const waResult = await whatsappService.sendTextMessage(phone, body, {
       token,
       phoneNumberId
     });
 
-    // 2. Save to database
+    const deliveryStatus = waResult.success ? 'sent' : 'failed';
+
+    // Save to database with delivery status
     dbService.saveChatMessage({
       phone,
       contactName,
       sender: 'me',
-      body
+      body,
+      waMessageId: waResult.messageId,
+      deliveryStatus
     });
 
-    res.json({ success: true, result: waResult });
+    // Broadcast to SSE clients
+    broadcastToSSE('new_message', {
+      phone,
+      contactName,
+      sender: 'me',
+      body,
+      timestamp: new Date().toISOString(),
+      deliveryStatus,
+      waMessageId: waResult.messageId
+    });
+
+    res.json({ success: waResult.success, result: waResult, deliveryStatus });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

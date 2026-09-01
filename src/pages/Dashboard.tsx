@@ -1,323 +1,433 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Users, Send, TrendingUp, Search,
-  MessageSquare, Globe, Star,
-  ChevronRight, DollarSign, Target, Sparkles, Rocket
-} from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NICHE_TYPES } from '../lib/utils';
-import { getLeads, getCampaigns } from '../lib/api';
+import {
+  LayoutDashboard,
+  Users,
+  Send,
+  CheckCircle2,
+  TrendingUp,
+  ChevronRight,
+  ArrowRight,
+} from 'lucide-react';
+import { getLeadStats, getLeads, getCampaigns } from '../lib/api';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#12121a] border border-[rgba(255,255,255,0.12)] rounded-xl p-3 shadow-2xl text-xs text-white">
-        <div className="text-[rgba(255,255,255,0.5)] mb-1 font-medium">{label}</div>
-        <div className="text-[#25D366] font-bold">{payload[0].value} enviadas</div>
-      </div>
-    );
+/* ── Types ──────────────────────────────────────────────── */
+interface LeadStats {
+  total: number;
+  byStatus: Record<string, number>;
+}
+
+interface Lead {
+  id: number;
+  name: string;
+  category: string;
+  phone: string;
+  status: string;
+  rating?: number;
+  created_at?: string;
+}
+
+interface Campaign {
+  id: number;
+  name: string;
+  status: string;
+  sent_count?: number;
+  replied_count?: number;
+}
+
+/* ── Niche config ────────────────────────────────────────── */
+const NICHES = [
+  { label: 'Dentista', type: 'dentist', icon: '🦷' },
+  { label: 'Advogado', type: 'lawyer', icon: '⚖️' },
+  { label: 'Cabelereiro', type: 'hair_care', icon: '✂️' },
+  { label: 'Fisioterapeuta', type: 'physiotherapist', icon: '🏥' },
+  { label: 'Psicólogo', type: 'psychologist', icon: '🧠' },
+  { label: 'Arquiteto', type: 'architect', icon: '📐' },
+  { label: 'Contador', type: 'accountant', icon: '📊' },
+  { label: 'Imobiliária', type: 'real_estate_agency', icon: '🏠' },
+];
+
+/* ── Funnel steps ────────────────────────────────────────── */
+const FUNNEL_STEPS = [
+  { label: 'Maps', sub: 'Prospecção', color: '#3b82f6' },
+  { label: 'Lead', sub: 'Salvo', color: '#8b5cf6' },
+  { label: 'Proposta', sub: 'Enviada', color: '#f59e0b' },
+  { label: 'Resposta', sub: 'Recebida', color: '#22c55e' },
+  { label: 'Fechamento', sub: 'Contrato', color: '#22c55e' },
+];
+
+/* ── Status badge helper ─────────────────────────────────── */
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case 'fechado': return 'badge badge-green';
+    case 'respondeu': return 'badge badge-blue';
+    case 'contatado': return 'badge badge-yellow';
+    default: return 'badge badge-gray';
   }
-  return null;
-};
+}
 
-const Dashboard = () => {
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'novo': return 'Novo';
+    case 'contatado': return 'Contatado';
+    case 'respondeu': return 'Respondeu';
+    case 'fechado': return 'Fechado';
+    default: return status;
+  }
+}
+
+/* ── Component ───────────────────────────────────────────── */
+export default function Dashboard() {
   const navigate = useNavigate();
-  const [realLeads, setRealLeads] = useState<any[]>([]);
-  const [totalLeads, setTotalLeads] = useState(0);
-  const [totalEnviadas, setTotalEnviadas] = useState(0);
-  const [totalEntregues, setTotalEntregues] = useState(0);
-  const [totalConvertidos, setTotalConvertidos] = useState(0);
+
+  const [stats, setStats] = useState<LeadStats | null>(null);
+  const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Buscar leads reais do banco de dados
-    getLeads().then(data => {
-      if (Array.isArray(data)) {
-        setRealLeads(data);
-        setTotalLeads(data.length);
-        const convertidos = data.filter((l: any) => l.status === 'convertido').length;
-        setTotalConvertidos(convertidos);
+    async function load() {
+      try {
+        const [statsData, leadsData, campaignsData] = await Promise.all([
+          getLeadStats(),
+          getLeads(),
+          getCampaigns(),
+        ]);
+        setStats(statsData);
+        setRecentLeads(Array.isArray(leadsData) ? leadsData.slice(0, 5) : []);
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
+      } catch (err) {
+        console.error('Dashboard load error:', err);
+      } finally {
+        setLoading(false);
       }
-    }).catch(() => {});
-
-    // 2. Buscar campanhas reais do banco de dados
-    getCampaigns().then(data => {
-      if (Array.isArray(data)) {
-        const totalSent = data.reduce((acc: number, c: any) => acc + (c.sent || 0), 0);
-        const totalDelivered = data.reduce((acc: number, c: any) => acc + (c.delivered || 0), 0);
-        setTotalEnviadas(totalSent);
-        setTotalEntregues(totalDelivered);
-      }
-    }).catch(() => {}).finally(() => setLoading(false));
+    }
+    load();
   }, []);
 
-  // Dados reais para o gráfico (calculado com base nas campanhas reais)
-  const chartData = [
-    { dia: 'Seg', mensagens: 0 },
-    { dia: 'Ter', mensagens: 0 },
-    { dia: 'Qua', mensagens: 0 },
-    { dia: 'Qui', mensagens: 0 },
-    { dia: 'Sex', mensagens: 0 },
-    { dia: 'Sáb', mensagens: 0 },
-    { dia: 'Dom', mensagens: 0 },
+  /* Derived numbers */
+  const totalLeads = stats?.total ?? 0;
+  const propostas = campaigns.reduce((acc, c) => acc + (c.sent_count ?? 0), 0);
+  const responderam = (stats?.byStatus?.respondeu ?? 0) + (stats?.byStatus?.fechado ?? 0);
+  const contratos = stats?.byStatus?.fechado ?? 0;
+
+  /* Funnel counts */
+  const funnelCounts = [
+    totalLeads,
+    totalLeads,
+    propostas,
+    responderam,
+    contratos,
   ];
 
-  const taxaEntrega = totalEnviadas > 0 ? ((totalEntregues / totalEnviadas) * 100).toFixed(1) + '%' : '0%';
-  const estimativaFaturamento = totalConvertidos * 1000; // R$ 1.000 por site fechado
-
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 min-h-screen pb-24">
-
-      {/* ── Header ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0d1f18] via-[#12121a] to-[#121a2e] border border-[rgba(37,211,102,0.25)] p-8 shadow-[0_0_50px_rgba(37,211,102,0.08)]">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-96 h-96 bg-[radial-gradient(circle,rgba(37,211,102,0.15)_0%,transparent_70%)] pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(37,211,102,0.15)] border border-[rgba(37,211,102,0.3)] text-[#25D366] text-xs font-bold uppercase tracking-wider">
-              <Sparkles size={13} /> Sistema de Prospecção WPP
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Prospecção de <span className="bg-gradient-to-r from-[#25D366] to-[#60EFFF] bg-clip-text text-transparent">Clientes para Sites</span>
-            </h1>
-            <p className="text-sm md:text-base text-[rgba(255,255,255,0.65)] leading-relaxed">
-              Busque empresas sem site no Google Maps por estado e cidade. Proposta sem risco: <strong className="text-white">o cliente só paga após aprovação!</strong>
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <button
-              onClick={() => navigate('/prospector')}
-              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-extrabold text-sm transition-all hover:scale-105 shadow-[0_0_25px_rgba(37,211,102,0.4)] flex items-center justify-center gap-2"
-            >
-              <Search size={18} /> Prospectar Agora
-            </button>
-            <button
-              onClick={() => navigate('/chat')}
-              className="px-6 py-3.5 rounded-2xl bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.12)] font-bold text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <MessageSquare size={18} /> Abrir Chat CRM
-            </button>
-          </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* ── Page header ── */}
+      <div className="page-header">
+        <div className="page-eyebrow">
+          <LayoutDashboard size={12} />
+          VISÃO GERAL
         </div>
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Acompanhe sua operação de prospecção em tempo real</p>
       </div>
 
-      {/* ── 4 Metrics Cards (100% REAIS) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {[
-          { label: 'Leads Salvos', value: totalLeads, icon: Users, color: '#3B82F6', change: 'Banco de dados', tag: 'Real' },
-          { label: 'Propostas Enviadas', value: totalEnviadas, icon: Send, color: '#25D366', change: 'WhatsApp API', tag: 'Real' },
-          { label: 'Taxa de Entrega', value: taxaEntrega, icon: TrendingUp, color: '#8B5CF6', change: 'Confirmação Meta', tag: 'Real' },
-          { label: 'Contratos Fechados', value: `R$ ${estimativaFaturamento}`, icon: DollarSign, color: '#F59E0B', change: `${totalConvertidos} clientes`, tag: 'Real' },
-        ].map((item, idx) => (
-          <div 
-            key={idx}
-            className="group relative bg-[rgba(255,255,255,0.03)] backdrop-blur-xl border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)] rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl overflow-hidden"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-semibold text-[rgba(255,255,255,0.5)] uppercase tracking-wider">{item.label}</span>
-              <div 
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                style={{ backgroundColor: `${item.color}18`, color: item.color, border: `1px solid ${item.color}30` }}
-              >
-                <item.icon size={20} />
+      <div className="p-page" style={{ paddingTop: 24 }}>
+
+        {/* ── Stat cards ── */}
+        {loading ? (
+          <div className="stats-grid" style={{ marginBottom: 28 }}>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="stat-card">
+                <div className="skeleton" style={{ height: 14, width: '60%', marginBottom: 12 }} />
+                <div className="skeleton" style={{ height: 28, width: '40%', marginBottom: 8 }} />
+                <div className="skeleton" style={{ height: 11, width: '50%' }} />
               </div>
-            </div>
-
-            <div className="text-3xl font-extrabold text-white tracking-tight mb-2">{item.value}</div>
-            
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[rgba(255,255,255,0.4)]">{item.change}</span>
-              <span className="px-2 py-0.5 rounded-full font-bold text-[10px]" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
-                {item.tag}
-              </span>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* ── Main Content Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        {/* Left: Nichos Recomendados (7 cols) */}
-        <div className="lg:col-span-7 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-3xl p-7 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                <Target size={20} className="text-[#25D366]" /> Selecionar Nicho para Prospectar
-              </h2>
-              <p className="text-xs text-[rgba(255,255,255,0.5)] mt-1">
-                Escolha o segmento e encontre comércios sem site na sua cidade
-              </p>
+        ) : (
+          <div className="stats-grid" style={{ marginBottom: 28 }}>
+            {/* Leads Salvos */}
+            <div className="stat-card">
+              <div className="stat-icon-wrap" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                <Users size={16} color="#3b82f6" />
+              </div>
+              <div className="stat-label">Leads Salvos</div>
+              <div className="stat-value">{totalLeads.toLocaleString('pt-BR')}</div>
+              <div className="stat-change neutral">total no banco</div>
             </div>
-            <button 
-              onClick={() => navigate('/prospector')}
-              className="text-xs text-[#25D366] hover:underline font-bold flex items-center gap-1"
-            >
-              Ver todos <ChevronRight size={14} />
-            </button>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {NICHE_TYPES.slice(0, 6).map((niche) => (
+            {/* Propostas Enviadas */}
+            <div className="stat-card">
+              <div className="stat-icon-wrap" style={{ background: 'rgba(245,158,11,0.12)' }}>
+                <Send size={16} color="#f59e0b" />
+              </div>
+              <div className="stat-label">Propostas Enviadas</div>
+              <div className="stat-value">{propostas.toLocaleString('pt-BR')}</div>
+              <div className="stat-change neutral">via campanhas</div>
+            </div>
+
+            {/* Responderam */}
+            <div className="stat-card">
+              <div className="stat-icon-wrap" style={{ background: 'rgba(34,197,94,0.12)' }}>
+                <CheckCircle2 size={16} color="#22c55e" />
+              </div>
+              <div className="stat-label">Responderam</div>
+              <div className="stat-value">{responderam.toLocaleString('pt-BR')}</div>
               <div
-                key={niche.value}
-                onClick={() => navigate(`/prospector?type=${niche.value}`)}
-                className="group cursor-pointer bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(37,211,102,0.1)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(37,211,102,0.3)] rounded-2xl p-4 text-center transition-all duration-300 hover:scale-[1.03]"
+                className="stat-change positive"
+                style={{ display: propostas > 0 ? 'block' : 'none' }}
               >
-                <div className="text-3xl mb-2 transition-transform group-hover:scale-110">{niche.emoji}</div>
-                <div className="text-xs font-bold text-white group-hover:text-[#25D366] transition-colors">{niche.label}</div>
-                <div className="text-[10px] text-[rgba(255,255,255,0.4)] mt-1 font-medium">Buscar empresas</div>
+                {propostas > 0 ? `${Math.round((responderam / propostas) * 100)}% de conversão` : ''}
               </div>
-            ))}
-          </div>
-
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-[rgba(37,211,102,0.1)] to-[rgba(59,130,246,0.1)] border border-[rgba(37,211,102,0.2)] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 text-[#25D366] flex items-center justify-center font-bold">
-                💡
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white">Proposta sem Risco (Pague Após Aprovação)</div>
-                <div className="text-[11px] text-[rgba(255,255,255,0.6)]">Crie a prévia, envie o link e só cobre se o cliente gostar!</div>
-              </div>
+              {propostas === 0 && <div className="stat-change neutral">sem campanhas ainda</div>}
             </div>
-            <button
-              onClick={() => navigate('/prospector')}
-              className="px-4 py-2 rounded-xl bg-[#25D366] text-white text-xs font-bold hover:bg-[#128C7E] transition-all whitespace-nowrap shadow-lg"
-            >
-              Começar
-            </button>
-          </div>
-        </div>
 
-        {/* Right: Funil de Prospecção (5 cols) */}
-        <div className="lg:col-span-5 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-3xl p-7 flex flex-col justify-between space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2 mb-1">
-              <Rocket size={20} className="text-[#3B82F6]" /> Funil de Vendas
-            </h2>
-            <p className="text-xs text-[rgba(255,255,255,0.5)]">Como fechar clientes todos os dias</p>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { step: '01', title: 'Busque no Google Maps', desc: 'Filtre empresas sem site na sua cidade', color: '#3B82F6' },
-              { step: '02', title: 'Envie a Proposta no Wpp', desc: 'Mensagem com oferta de pagar após aprovação', color: '#25D366' },
-              { step: '03', title: 'Desenvolva a Prévia', desc: 'Monte o site em poucas horas', color: '#8B5CF6' },
-              { step: '04', title: 'Receba no PIX', desc: 'Cliente aprova e realiza o pagamento', color: '#F59E0B' },
-            ].map((f) => (
-              <div key={f.step} className="flex items-start gap-4 p-3.5 rounded-2xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] transition-all">
-                <span className="text-xs font-black px-2.5 py-1 rounded-lg shrink-0" style={{ backgroundColor: `${f.color}20`, color: f.color }}>
-                  {f.step}
-                </span>
-                <div>
-                  <div className="text-xs font-bold text-white">{f.title}</div>
-                  <div className="text-[11px] text-[rgba(255,255,255,0.5)] mt-0.5 leading-snug">{f.desc}</div>
-                </div>
+            {/* Contratos */}
+            <div className="stat-card">
+              <div
+                className="stat-icon-wrap"
+                style={{ background: 'rgba(34,197,94,0.15)', boxShadow: '0 0 12px rgba(34,197,94,0.2)' }}
+              >
+                <TrendingUp size={16} color="#22c55e" />
               </div>
-            ))}
+              <div className="stat-label">Contratos</div>
+              <div className="stat-value" style={{ color: 'var(--green)' }}>
+                {contratos.toLocaleString('pt-BR')}
+              </div>
+              <div className="stat-change positive">leads fechados</div>
+            </div>
           </div>
+        )}
 
-          <button
-            onClick={() => navigate('/prospector')}
-            className="w-full py-3 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-xs font-bold transition-all shadow-[0_0_15px_rgba(37,211,102,0.3)]"
+        {/* ── Funnel Visual ── */}
+        <div className="card" style={{ marginBottom: 28, padding: 24 }}>
+          <div
+            className="flex items-center justify-between"
+            style={{ marginBottom: 20 }}
           >
-            Iniciar Busca de Clientes
-          </button>
-        </div>
-
-      </div>
-
-      {/* ── Bottom Section: 100% Real Leads & Chart ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        {/* Chart */}
-        <div className="lg:col-span-7 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-3xl p-7 space-y-4">
-          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white">Envios da Semana</h2>
-              <p className="text-xs text-[rgba(255,255,255,0.4)]">Histórico de mensagens disparadas</p>
+              <h2 className="font-bold" style={{ fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>
+                Funil Visual
+              </h2>
+              <p className="text-sm muted">Jornada do prospecto ao fechamento</p>
             </div>
-            <span className="text-xs font-bold text-[#25D366] bg-[rgba(37,211,102,0.1)] px-3 py-1 rounded-full border border-[rgba(37,211,102,0.2)]">
-              ● Banco de Dados Conectado
-            </span>
+            <TrendingUp size={16} color="var(--text-3)" />
           </div>
 
-          {totalEnviadas === 0 ? (
-            <div className="py-16 text-center text-xs text-[rgba(255,255,255,0.4)] border border-dashed border-[rgba(255,255,255,0.08)] rounded-2xl">
-              Nenhuma mensagem enviada ainda nesta semana.
-              <br />
-              <button onClick={() => navigate('/prospector')} className="mt-3 text-[#25D366] font-bold underline">
-                Disparar primeira campanha
-              </button>
-            </div>
-          ) : (
-            <div className="h-60 w-full pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorEnviadas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#25D366" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#25D366" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="dia" stroke="rgba(255,255,255,0.2)" tick={{fill: 'rgba(255,255,255,0.5)', fontSize: 11}} />
-                  <YAxis hide />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="mensagens" name="Enviadas" stroke="#25D366" strokeWidth={2.5} fill="url(#colorEnviadas)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <div className="funnel-steps">
+            {FUNNEL_STEPS.map((step, idx) => (
+              <>
+                <div key={step.label} className="funnel-step">
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      background: `${step.color}18`,
+                      border: `1px solid ${step.color}30`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 8px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: step.color,
+                    }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                    {step.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
+                    {step.sub}
+                  </div>
+                  {!loading && (
+                    <div style={{ fontSize: 18, fontWeight: 800, color: step.color }}>
+                      {funnelCounts[idx].toLocaleString('pt-BR')}
+                    </div>
+                  )}
+                  {loading && (
+                    <div className="skeleton" style={{ height: 18, width: 40, margin: '0 auto' }} />
+                  )}
+                </div>
+                {idx < FUNNEL_STEPS.length - 1 && (
+                  <div key={`arrow-${idx}`} className="funnel-arrow">
+                    <ChevronRight size={14} />
+                  </div>
+                )}
+              </>
+            ))}
+          </div>
         </div>
 
-        {/* Real Saved Leads */}
-        <div className="lg:col-span-5 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-3xl p-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white">Leads Salvos no Banco</h2>
-            <button onClick={() => navigate('/leads')} className="text-xs text-[#25D366] hover:underline font-bold">
-              Ver todos
-            </button>
-          </div>
-
-          {realLeads.length === 0 ? (
-            <div className="py-12 px-4 text-center text-xs text-[rgba(255,255,255,0.4)] border border-dashed border-[rgba(255,255,255,0.08)] rounded-2xl">
-              Nenhum lead salvo no banco de dados.
-              <div className="mt-2 text-[rgba(255,255,255,0.6)]">Vá em Prospectar, selecione empresas e clique em "Salvar Leads"!</div>
-              <button 
-                onClick={() => navigate('/prospector')} 
-                className="mt-4 px-4 py-2 rounded-xl bg-[#25D366] text-white font-bold transition-all text-xs"
-              >
-                Buscar Empresas Agora
-              </button>
+        {/* ── Bottom row: Niches + Recent Activity ── */}
+        <div
+          className="flex gap-4"
+          style={{ alignItems: 'flex-start' }}
+        >
+          {/* Nichos Rápidos */}
+          <div className="card" style={{ flex: '0 0 340px', padding: 24 }}>
+            <div style={{ marginBottom: 16 }}>
+              <h2 className="font-bold" style={{ fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>
+                Nichos Rápidos
+              </h2>
+              <p className="text-sm muted">Prospecte por segmento com um clique</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {realLeads.slice(0, 4).map(lead => (
-                <div 
-                  key={lead.id} 
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
-                  onClick={() => navigate('/leads')}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+              }}
+            >
+              {NICHES.map(niche => (
+                <button
+                  key={niche.type}
+                  className="btn btn-secondary"
+                  style={{
+                    justifyContent: 'flex-start',
+                    gap: 8,
+                    padding: '9px 12px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                  onClick={() => navigate(`/prospector?type=${niche.type}`)}
                 >
-                  <div>
-                    <div className="text-xs font-bold text-white truncate max-w-[160px]">{lead.name}</div>
-                    <div className="text-[11px] text-[rgba(255,255,255,0.4)] capitalize">{lead.category || lead.type || 'Empresa'}</div>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-[rgba(37,211,102,0.1)] border border-[rgba(37,211,102,0.2)] text-[#25D366] text-[10px] font-extrabold uppercase">
-                    {lead.status || 'Novo'}
-                  </span>
-                </div>
+                  <span style={{ fontSize: 15 }}>{niche.icon}</span>
+                  {niche.label}
+                </button>
               ))}
             </div>
-          )}
+
+            <div style={{ marginTop: 16 }}>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => navigate('/prospector')}
+              >
+                Busca Personalizada
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="card" style={{ flex: 1, padding: 24, minWidth: 0 }}>
+            <div
+              className="flex items-center justify-between"
+              style={{ marginBottom: 16 }}
+            >
+              <div>
+                <h2 className="font-bold" style={{ fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>
+                  Atividade Recente
+                </h2>
+                <p className="text-sm muted">Últimos 5 leads salvos</p>
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => navigate('/leads')}
+              >
+                Ver todos
+                <ChevronRight size={12} />
+              </button>
+            </div>
+
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="skeleton" style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="skeleton" style={{ height: 13, width: '55%', marginBottom: 6 }} />
+                      <div className="skeleton" style={{ height: 11, width: '35%' }} />
+                    </div>
+                    <div className="skeleton" style={{ height: 20, width: 60, borderRadius: 20 }} />
+                  </div>
+                ))}
+              </div>
+            ) : recentLeads.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '40px 0',
+                  color: 'var(--text-3)',
+                }}
+              >
+                <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, color: 'var(--text-2)' }}>
+                  Nenhum lead ainda
+                </div>
+                <div style={{ fontSize: 12 }}>Prospecte leads no Maps para começar</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {recentLeads.map(lead => (
+                  <div
+                    key={lead.id}
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      transition: 'background var(--transition)',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'var(--bg-4)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    }}
+                    onClick={() => navigate('/leads')}
+                  >
+                    {/* Avatar */}
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        background: 'linear-gradient(135deg, #22c55e22, #22c55e11)',
+                        border: '1px solid rgba(34,197,94,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: 'var(--green)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {lead.name?.charAt(0)?.toUpperCase() ?? '?'}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        className="truncate font-semibold"
+                        style={{ fontSize: 13, color: 'var(--text)', marginBottom: 1 }}
+                      >
+                        {lead.name}
+                      </div>
+                      <div
+                        className="truncate text-xs dim"
+                      >
+                        {lead.category} · {lead.phone}
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <span className={statusBadgeClass(lead.status)}>
+                      {statusLabel(lead.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-
       </div>
-
     </div>
   );
-};
-
-export default Dashboard;
+}

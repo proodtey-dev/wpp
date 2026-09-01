@@ -1,224 +1,390 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Send, Search as SearchIcon, Filter, Plus, Target } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import LeadTable from '../components/LeadTable';
-import CampaignModal from '../components/CampaignModal';
-import { getLeads, deleteLead as deleteLeadApi, updateLead as updateLeadApi } from '../lib/api';
+import { useEffect, useState, useMemo } from 'react';
+import { Users, Search, Trash2, Star, Phone } from 'lucide-react';
+import { getLeads, deleteLead } from '../lib/api';
 
-const statusTabs = [
-  { id: 'todos', label: 'Todos os Leads' },
-  { id: 'novo', label: 'Novos' },
-  { id: 'contatado', label: 'Contatados' },
-  { id: 'respondeu', label: 'Responderam' },
-  { id: 'convertido', label: 'Convertidos' }
-];
+/* ── Types ──────────────────────────────────────────────── */
+interface Lead {
+  id: number;
+  name: string;
+  category: string;
+  phone: string;
+  status: string;
+  rating?: number;
+  created_at?: string;
+}
 
-const Leads = () => {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('todos');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+type StatusFilter = 'all' | 'novo' | 'contatado' | 'respondeu' | 'fechado';
+
+/* ── Helpers ─────────────────────────────────────────────── */
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case 'fechado':   return 'badge badge-green';
+    case 'respondeu': return 'badge badge-blue';
+    case 'contatado': return 'badge badge-yellow';
+    default:          return 'badge badge-gray';
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'novo':      return 'Novo';
+    case 'contatado': return 'Contatado';
+    case 'respondeu': return 'Respondeu';
+    case 'fechado':   return 'Fechado';
+    default:          return status ?? 'Novo';
+  }
+}
+
+function renderStars(rating?: number) {
+  if (!rating) return <span className="dim text-xs">—</span>;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          size={11}
+          fill={i < Math.round(rating) ? '#f59e0b' : 'transparent'}
+          color={i < Math.round(rating) ? '#f59e0b' : 'var(--text-3)'}
+        />
+      ))}
+      <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 3 }}>
+        {rating.toFixed(1)}
+      </span>
+    </span>
+  );
+}
+
+/* ── Component ───────────────────────────────────────────── */
+export default function Leads() {
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [leadsToMsg, setLeadsToMsg] = useState<any[]>([]);
-
-  const loadRealLeads = () => {
-    setLoading(true);
-    getLeads().then(data => {
-      if (Array.isArray(data)) {
-        setLeads(data);
-      } else {
-        setLeads([]);
-      }
-    }).catch(() => {
-      setLeads([]);
-    }).finally(() => {
-      setLoading(false);
-    });
-  };
-
+  /* ── Load ── */
   useEffect(() => {
-    loadRealLeads();
+    async function load() {
+      try {
+        const data = await getLeads();
+        setLeads(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Leads load error:', err);
+        showToast('Erro ao carregar leads', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesTab = activeTab === 'todos' || lead.status === activeTab;
-    const matchesSearch = (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (lead.phone && lead.phone.includes(searchTerm));
-    return matchesTab && matchesSearch;
-  });
+  /* ── Toast helper ── */
+  function showToast(msg: string, type: 'success' | 'error') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  }
 
-  const handleSelect = (id: number, checked: boolean) => {
-    if (checked) {
-      setSelectedIds(prev => [...prev, id]);
-    } else {
-      setSelectedIds(prev => prev.filter(item => item !== id));
-    }
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(filteredLeads.map(l => l.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (confirm('Tem certeza que deseja excluir este lead?')) {
-      await deleteLeadApi(id).catch(() => {});
+  /* ── Delete ── */
+  async function handleDelete(id: number) {
+    if (!window.confirm('Excluir este lead?')) return;
+    setDeletingId(id);
+    try {
+      await deleteLead(id);
       setLeads(prev => prev.filter(l => l.id !== id));
-      setSelectedIds(prev => prev.filter(item => item !== id));
+      showToast('Lead excluído com sucesso', 'success');
+    } catch {
+      showToast('Erro ao excluir lead', 'error');
+    } finally {
+      setDeletingId(null);
     }
-  };
+  }
 
-  const handleBulkDelete = async () => {
-    if (confirm(`Tem certeza que deseja excluir ${selectedIds.length} leads?`)) {
-      for (const id of selectedIds) {
-        await deleteLeadApi(id).catch(() => {});
-      }
-      setLeads(prev => prev.filter(l => !selectedIds.includes(l.id)));
-      setSelectedIds([]);
-    }
-  };
+  /* ── Filtered leads ── */
+  const filtered = useMemo(() => {
+    return leads.filter(lead => {
+      const matchesSearch =
+        !search ||
+        lead.name?.toLowerCase().includes(search.toLowerCase()) ||
+        lead.phone?.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus =
+        statusFilter === 'all' || lead.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [leads, search, statusFilter]);
 
-  const openCampaignModal = (leadsList: any[]) => {
-    setLeadsToMsg(leadsList);
-    setIsModalOpen(true);
-  };
-
-  const handleCampaignSend = async (name: string, msg: string) => {
-    const ids = leadsToMsg.map(l => l.id);
-    for (const lead of leadsToMsg) {
-      if (lead.id) {
-        await updateLeadApi(lead.id, { status: 'contatado' }).catch(() => {});
-      }
-    }
-    setLeads(prev => prev.map(l => ids.includes(l.id) ? { ...l, status: 'contatado' } : l));
-    alert(`Mensagem enviada para ${leadsToMsg.length} leads!`);
-    setSelectedIds([]);
-  };
+  /* ── Counts per status ── */
+  const counts: Record<StatusFilter, number> = useMemo(() => ({
+    all:        leads.length,
+    novo:       leads.filter(l => l.status === 'novo' || !l.status).length,
+    contatado:  leads.filter(l => l.status === 'contatado').length,
+    respondeu:  leads.filter(l => l.status === 'respondeu').length,
+    fechado:    leads.filter(l => l.status === 'fechado').length,
+  }), [leads]);
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Meus Leads Salvos</h1>
-          <p className="text-[rgba(255,255,255,0.6)]">Gerencie seus contatos do banco de dados SQLite real.</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* ── Toast ── */}
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          <span>{toast.type === 'success' ? '✓' : '✕'}</span>
+          {toast.msg}
         </div>
-        
-        <div className="flex items-center gap-4 bg-[rgba(255,255,255,0.02)] p-2 rounded-xl border border-[rgba(255,255,255,0.05)]">
-          <div className="px-4 py-2 text-center border-r border-[rgba(255,255,255,0.08)]">
-            <div className="text-xl font-bold text-white">{leads.length}</div>
-            <div className="text-[10px] text-[rgba(255,255,255,0.5)] uppercase tracking-wider">Total</div>
-          </div>
-          <div className="px-4 py-2 text-center border-r border-[rgba(255,255,255,0.08)]">
-            <div className="text-xl font-bold text-[#3B82F6]">{leads.filter(l => l.status === 'novo').length}</div>
-            <div className="text-[10px] text-[rgba(255,255,255,0.5)] uppercase tracking-wider">Novos</div>
-          </div>
-          <div className="px-4 py-2 text-center">
-            <div className="text-xl font-bold text-[#22C55E]">{leads.filter(l => l.status === 'respondeu' || l.status === 'convertido').length}</div>
-            <div className="text-[10px] text-[rgba(255,255,255,0.5)] uppercase tracking-wider">Ativos</div>
-          </div>
+      )}
+
+      {/* ── Page header ── */}
+      <div className="page-header">
+        <div className="page-eyebrow">
+          <Users size={12} />
+          GERENCIAMENTO
         </div>
+        <h1 className="page-title">Leads</h1>
+        <p className="page-subtitle">
+          {loading ? 'Carregando...' : `${leads.length} leads no banco de dados`}
+        </p>
       </div>
 
-      <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.08)] rounded-2xl overflow-hidden mb-6">
-        <div className="p-4 border-b border-[rgba(255,255,255,0.08)] flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
-          <div className="flex overflow-x-auto pb-2 md:pb-0 hide-scrollbar gap-2">
-            {statusTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === tab.id 
-                    ? 'bg-[rgba(255,255,255,0.1)] text-white' 
-                    : 'text-[rgba(255,255,255,0.5)] hover:text-white hover:bg-[rgba(255,255,255,0.05)]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+      <div className="p-page" style={{ paddingTop: 24 }}>
 
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <SearchIcon size={16} className="text-[rgba(255,255,255,0.4)]" />
-            </div>
+        {/* ── Filters bar ── */}
+        <div
+          className="card flex items-center gap-3"
+          style={{ padding: '12px 16px', marginBottom: 20, flexWrap: 'wrap' }}
+        >
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1 1 220px' }}>
+            <Search
+              size={14}
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-3)',
+                pointerEvents: 'none',
+              }}
+            />
             <input
-              type="text"
-              placeholder="Buscar leads..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.1)] rounded-lg pl-9 pr-4 py-2 text-sm text-white outline-none focus:border-[#25D366] transition-all"
+              className="input"
+              style={{ paddingLeft: 32 }}
+              placeholder="Buscar por nome ou telefone..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
             />
           </div>
+
+          {/* Status filter */}
+          <div style={{ flex: '0 0 auto' }}>
+            <select
+              className="input"
+              style={{ width: 'auto', minWidth: 160 }}
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+            >
+              <option value="all">Todos os status ({counts.all})</option>
+              <option value="novo">Novo ({counts.novo})</option>
+              <option value="contatado">Contatado ({counts.contatado})</option>
+              <option value="respondeu">Respondeu ({counts.respondeu})</option>
+              <option value="fechado">Fechado ({counts.fechado})</option>
+            </select>
+          </div>
+
+          {/* Result count */}
+          {(search || statusFilter !== 'all') && (
+            <span className="text-xs dim">
+              {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
-        {selectedIds.length > 0 && (
-          <div className="bg-[rgba(37,211,102,0.1)] px-4 py-3 flex items-center justify-between border-b border-[rgba(37,211,102,0.2)]">
-            <span className="text-sm font-medium text-[#25D366]">
-              {selectedIds.length} lead(s) selecionado(s)
-            </span>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleBulkDelete}
-                className="px-3 py-1.5 text-xs rounded bg-[rgba(239,68,68,0.1)] text-[#EF4444] hover:bg-[#EF4444] hover:text-white transition-colors"
-              >
-                Excluir
-              </button>
-              <button 
-                onClick={() => openCampaignModal(filteredLeads.filter(l => selectedIds.includes(l.id)))}
-                className="px-3 py-1.5 text-xs rounded bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors flex items-center gap-1 shadow-sm font-bold"
-              >
-                <Send size={14} /> Enviar WhatsApp
-              </button>
-            </div>
-          </div>
-        )}
-
+        {/* ── Table ── */}
         {loading ? (
-          <div className="p-12 text-center text-sm text-[rgba(255,255,255,0.5)]">
-            Carregando banco de dados...
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Categoria</th>
+                  <th>Telefone</th>
+                  <th>Status</th>
+                  <th>Avaliação</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 6 }).map((__, j) => (
+                      <td key={j}>
+                        <div
+                          className="skeleton"
+                          style={{ height: 14, width: j === 5 ? 60 : j === 0 ? '70%' : '80%' }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : leads.length === 0 ? (
-          <div className="p-16 text-center">
-            <Target size={48} className="mx-auto text-[rgba(255,255,255,0.2)] mb-4" />
-            <h3 className="text-lg font-bold text-white mb-2">Nenhum lead salvo ainda</h3>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] max-w-md mx-auto mb-6">
-              Vá na aba de prospecção, busque empresas sem site na sua região e clique em "Salvar Leads" para construir sua lista real.
-            </p>
-            <button
-              onClick={() => navigate('/prospector')}
-              className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-bold transition-all shadow-[0_0_15px_rgba(37,211,102,0.3)] inline-flex items-center gap-2"
+        ) : filtered.length === 0 ? (
+          /* ── Empty state ── */
+          <div
+            className="card"
+            style={{
+              padding: '60px 32px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                background: 'var(--bg-4)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <Plus size={16} /> Prospectar Novas Empresas
-            </button>
+              <Users size={22} color="var(--text-3)" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                {search || statusFilter !== 'all'
+                  ? 'Nenhum lead encontrado'
+                  : 'Nenhum lead ainda'}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                {search || statusFilter !== 'all'
+                  ? 'Tente ajustar os filtros de busca'
+                  : 'Vá ao Prospector para buscar e salvar leads do Google Maps'}
+              </div>
+            </div>
+            {(search || statusFilter !== 'all') && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => { setSearch(''); setStatusFilter('all'); }}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
         ) : (
-          <LeadTable 
-            leads={filteredLeads}
-            selectedIds={selectedIds}
-            onSelect={handleSelect}
-            onSelectAll={handleSelectAll}
-            onDelete={handleDelete}
-            onSend={(lead) => openCampaignModal([lead])}
-          />
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Categoria</th>
+                  <th>Telefone</th>
+                  <th>Status</th>
+                  <th>Avaliação</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(lead => (
+                  <tr key={lead.id}>
+                    {/* Nome */}
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 7,
+                            background: 'rgba(34,197,94,0.1)',
+                            border: '1px solid rgba(34,197,94,0.18)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: 'var(--green)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {lead.name?.charAt(0)?.toUpperCase() ?? '?'}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            maxWidth: 200,
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {lead.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Categoria */}
+                    <td>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                        {lead.category || '—'}
+                      </span>
+                    </td>
+
+                    {/* Telefone */}
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <Phone size={11} color="var(--text-3)" />
+                        <span style={{ fontSize: 12, fontFamily: 'monospace', letterSpacing: 0.3 }}>
+                          {lead.phone || '—'}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td>
+                      <span className={statusBadgeClass(lead.status)}>
+                        {statusLabel(lead.status)}
+                      </span>
+                    </td>
+
+                    {/* Avaliação */}
+                    <td>
+                      {renderStars(lead.rating)}
+                    </td>
+
+                    {/* Ação */}
+                    <td>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        disabled={deletingId === lead.id}
+                        onClick={() => handleDelete(lead.id)}
+                        title="Excluir lead"
+                      >
+                        <Trash2 size={12} />
+                        {deletingId === lead.id ? 'Excluindo...' : 'Excluir'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ── Footer count ── */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <span className="text-xs dim">
+              Exibindo {filtered.length} de {leads.length} leads
+            </span>
+          </div>
         )}
       </div>
-
-      <CampaignModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        selectedLeads={leadsToMsg}
-        onSend={handleCampaignSend}
-      />
     </div>
   );
-};
-
-export default Leads;
+}

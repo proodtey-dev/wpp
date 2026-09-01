@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Save, Send, Sparkles, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import MapSearch from '../components/MapSearch';
 import FilterBar from '../components/FilterBar';
 import LeadCard from '../components/LeadCard';
@@ -18,22 +18,23 @@ const Prospector = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastSearchParams, setLastSearchParams] = useState<{ query: string; radius: number; type: string } | null>(null);
 
-  // Filter states
   const [minReviews, setMinReviews] = useState(0);
   const [minRating, setMinRating] = useState(1);
   const [noWebsite, setNoWebsite] = useState(true);
   const [hasPhone, setHasPhone] = useState(true);
   const [businessType, setBusinessType] = useState(initialType);
 
-  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
-    if (initialType) {
-      setBusinessType(initialType);
-    }
+    if (initialType) setBusinessType(initialType);
   }, [initialType]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3500);
+  };
 
   const handleSearch = async (params: { query: string; radius: number; type: string }, pageNum: number = 1) => {
     setIsSearching(true);
@@ -43,9 +44,7 @@ const Prospector = () => {
     setLastSearchParams(params);
 
     try {
-      // 1. Geocode location
       const geo = await geocodeLocation(params.query).catch(() => ({ latitude: -16.6869, longitude: -49.2648 }));
-
       const resp = await searchBusinesses({
         latitude: geo?.latitude || -16.6869,
         longitude: geo?.longitude || -49.2648,
@@ -60,7 +59,7 @@ const Prospector = () => {
         hasPhone
       }).catch(() => null);
 
-      if (resp && resp.results && resp.results.length > 0) {
+      if (resp?.results?.length > 0) {
         const searchResults = resp.results.map((r: any, idx: number) => ({
           id: idx + 1 + (pageNum - 1) * 20,
           name: r.name,
@@ -69,7 +68,7 @@ const Prospector = () => {
           reviews: r.reviewCount || 35,
           address: r.address || params.query,
           phone: r.phone || 'Telefone sob consulta',
-          hasWebsite: Boolean(r.website && r.website.trim().length > 0),
+          hasWebsite: Boolean(r.website?.trim().length > 0),
           status: r.status || 'novo',
           emoji: '💼'
         }));
@@ -88,14 +87,14 @@ const Prospector = () => {
   const handleNextPage = () => {
     if (lastSearchParams) {
       handleSearch(lastSearchParams, currentPage + 1);
-      window.scrollTo({ top: 400, behavior: 'smooth' });
+      window.scrollTo({ top: 350, behavior: 'smooth' });
     }
   };
 
   const handlePrevPage = () => {
     if (lastSearchParams && currentPage > 1) {
       handleSearch(lastSearchParams, currentPage - 1);
-      window.scrollTo({ top: 400, behavior: 'smooth' });
+      window.scrollTo({ top: 350, behavior: 'smooth' });
     }
   };
 
@@ -106,180 +105,162 @@ const Prospector = () => {
   });
 
   const toggleSelect = (id: number, checked: boolean) => {
-    if (checked) {
-      setSelectedIds(prev => [...prev, id]);
-    } else {
-      setSelectedIds(prev => prev.filter(item => item !== id));
-    }
+    setSelectedIds(prev => checked ? [...prev, id] : prev.filter(item => item !== id));
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredResults.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredResults.map(r => r.id));
-    }
+    setSelectedIds(selectedIds.length === filteredResults.length ? [] : filteredResults.map(r => r.id));
   };
 
   const handleSaveLeadsAction = async () => {
     const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
     await saveLeads(selectedLeads).catch(() => {});
-    setToastMessage(`${selectedIds.length} empresas salvas no seu banco de dados!`);
-    setTimeout(() => setToastMessage(''), 3000);
+    showToast(`${selectedIds.length} empresa${selectedIds.length > 1 ? 's' : ''} salva${selectedIds.length > 1 ? 's' : ''} com sucesso!`);
     setSelectedIds([]);
   };
 
-  const handleSendWhatsApp = () => {
-    setIsModalOpen(true);
-  };
-
   const handleCampaignSend = async (name: string, msg: string) => {
-    setToastMessage(`Campanha "${name}" iniciada com sucesso!`);
-    setTimeout(() => setToastMessage(''), 4000);
+    showToast(`Campanha "${name}" iniciada com sucesso!`);
     setSelectedIds([]);
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto min-h-screen pb-32 animate-in fade-in duration-500">
-
-      {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-[#25D366] text-white px-5 py-3 rounded-xl font-medium shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5">
-          <CheckCircle2 size={20} />
-          {toastMessage}
+    <div>
+      {toast && (
+        <div className="toast success">
+          <CheckCircle2 size={15} style={{ color: 'var(--green)', flexShrink: 0 }} />
+          {toast}
         </div>
       )}
 
-      <div className="mb-8">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#25D366] uppercase tracking-wider mb-1">
-          <Sparkles size={14} /> PROSPECÇÃO DE EMPRESAS
-        </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Buscar Empresas sem Site</h1>
-        <p className="text-[rgba(255,255,255,0.6)]">
-          Selecione o Estado, a Cidade e o Nicho desejado para encontrar empresas no Maps.
-        </p>
+      <div className="page-header" style={{ paddingBottom: 20 }}>
+        <div className="page-eyebrow"><Sparkles size={12} /> Prospecção</div>
+        <h1 className="page-title">Buscar Empresas</h1>
+        <p className="page-subtitle">Encontre empresas sem site no Google Maps por cidade e nicho.</p>
       </div>
 
-      <MapSearch onSearch={(p) => handleSearch(p, 1)} isLoading={isSearching} initialType={initialType} />
+      <div style={{ padding: '0 32px 32px' }}>
+        <MapSearch onSearch={(p) => handleSearch(p, 1)} isLoading={isSearching} initialType={initialType} />
 
-      {hasSearched && !isSearching && (
-        <div className="mt-8">
-          <FilterBar 
-            minReviews={minReviews} setMinReviews={setMinReviews}
-            minRating={minRating} setMinRating={setMinRating}
-            noWebsite={noWebsite} setNoWebsite={setNoWebsite}
-            hasPhone={hasPhone} setHasPhone={setHasPhone}
-            businessType={businessType} setBusinessType={setBusinessType}
-            resultCount={filteredResults.length}
-          />
+        {hasSearched && !isSearching && (
+          <div style={{ marginTop: 20 }}>
+            <FilterBar
+              minReviews={minReviews} setMinReviews={setMinReviews}
+              minRating={minRating} setMinRating={setMinRating}
+              noWebsite={noWebsite} setNoWebsite={setNoWebsite}
+              hasPhone={hasPhone} setHasPhone={setHasPhone}
+              businessType={businessType} setBusinessType={setBusinessType}
+              resultCount={filteredResults.length}
+            />
 
-          <div className="mb-4 flex items-center justify-between bg-[rgba(255,255,255,0.03)] px-4 py-3 rounded-xl border border-[rgba(255,255,255,0.06)]">
-            <label htmlFor="select-all" className="flex items-center gap-3 text-sm text-white cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                id="select-all"
-                checked={filteredResults.length > 0 && selectedIds.length === filteredResults.length}
-                onChange={toggleSelectAll}
-                className="w-4 h-4 accent-[#25D366] cursor-pointer"
-              />
-              Selecionar todos os {filteredResults.length} resultados encontrados (Página {currentPage})
-            </label>
+            <div className="card" style={{ padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label htmlFor="select-all" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)' }}>
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  checked={filteredResults.length > 0 && selectedIds.length === filteredResults.length}
+                  onChange={toggleSelectAll}
+                  style={{ width: 15, height: 15, accentColor: 'var(--green)', cursor: 'pointer' }}
+                />
+                Selecionar todos os {filteredResults.length} resultados (Página {currentPage})
+              </label>
+              {selectedIds.length > 0 && (
+                <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>
+                  {selectedIds.length} selecionado{selectedIds.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
 
-            {selectedIds.length > 0 && (
-              <span className="text-xs text-[#25D366] font-semibold">
-                {selectedIds.length} selecionado{selectedIds.length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-
-          {filteredResults.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredResults.map(lead => (
-                  <LeadCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    selected={selectedIds.includes(lead.id)}
-                    onSelect={(checked) => toggleSelect(lead.id, checked)}
-                  />
-                ))}
-              </div>
-
-              {/* Pagination Controls */}
-              <div className="mt-10 flex items-center justify-between bg-[rgba(255,255,255,0.03)] p-4 rounded-2xl border border-[rgba(255,255,255,0.08)]">
-                <button
-                  onClick={handlePrevPage}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)] text-white text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-                >
-                  <ChevronLeft size={18} /> Página Anterior
-                </button>
-
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Página</span>
-                  <span className="bg-[#25D366] text-black w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs">
-                    {currentPage}
-                  </span>
+            {filteredResults.length > 0 ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {filteredResults.map(lead => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      selected={selectedIds.includes(lead.id)}
+                      onSelect={(checked) => toggleSelect(lead.id, checked)}
+                    />
+                  ))}
                 </div>
 
-                <button
-                  onClick={handleNextPage}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:opacity-90 text-white text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(37,211,102,0.3)]"
-                >
-                  <span>Próximos 20 Resultados</span> <ChevronRight size={18} />
-                </button>
+                {/* Pagination */}
+                <div className="card" style={{ padding: '12px 16px', marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </button>
+                  <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                    Página <span style={{ color: 'var(--text)', fontWeight: 700 }}>{currentPage}</span>
+                  </span>
+                  <button
+                    onClick={handleNextPage}
+                    className="btn btn-primary btn-sm"
+                  >
+                    Próximos 20 <ChevronRight size={14} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--bg-3)', borderRadius: 14, border: '1px solid var(--border)' }}>
+                <Search size={32} style={{ margin: '0 auto 12px', color: 'var(--text-3)', opacity: 0.4 }} />
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Nenhum resultado com esses filtros</p>
+                <p style={{ fontSize: 12, color: 'var(--text-3)' }}>Tente desmarcar "Sem website" ou trocar a cidade selecionada.</p>
               </div>
-            </>
-          ) : (
-            <div className="text-center py-20 bg-[rgba(255,255,255,0.02)] rounded-2xl border border-[rgba(255,255,255,0.05)]">
-              <Search size={48} className="mx-auto text-[rgba(255,255,255,0.2)] mb-4" />
-              <h3 className="text-xl font-medium text-white mb-2">Nenhum resultado com esses filtros</h3>
-              <p className="text-[rgba(255,255,255,0.5)]">Tente desmarcar "Sem website" ou trocar a cidade selecionada.</p>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {isSearching && (
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] rounded-xl p-5 h-48 animate-pulse flex flex-col justify-between">
-              <div>
-                <div className="h-5 bg-[rgba(255,255,255,0.1)] rounded w-3/4 mb-3"></div>
-                <div className="h-3 bg-[rgba(255,255,255,0.1)] rounded w-1/2"></div>
+        {isSearching && (
+          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="card" style={{ padding: 16, height: 180 }}>
+                <div className="skeleton" style={{ height: 14, width: '75%', marginBottom: 10 }} />
+                <div className="skeleton" style={{ height: 10, width: '50%', marginBottom: 20 }} />
+                <div className="skeleton" style={{ height: 10, width: '100%', marginBottom: 6 }} />
+                <div className="skeleton" style={{ height: 10, width: '70%' }} />
               </div>
-              <div className="space-y-2">
-                <div className="h-3 bg-[rgba(255,255,255,0.1)] rounded w-full"></div>
-                <div className="h-3 bg-[rgba(255,255,255,0.1)] rounded w-2/3"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Sticky Bottom Bar */}
+      {/* Sticky action bar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-[50%] md:left-[calc(50%+140px)] transform -translate-x-1/2 bg-[#12121a]/95 backdrop-blur-xl border border-[rgba(37,211,102,0.3)] p-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] flex items-center gap-6 z-40 animate-in slide-in-from-bottom-10 duration-300 w-11/12 max-w-2xl">
-          <div className="text-white font-medium flex-1 text-center md:text-left whitespace-nowrap">
-            <span className="text-[#25D366] text-xl font-extrabold">{selectedIds.length}</span> empresas selecionadas
-          </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={handleSaveLeadsAction}
-              className="px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] text-white text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <Save size={16} /> <span className="hidden md:inline">Salvar Leads</span>
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--bg-3)',
+          border: '1px solid rgba(34,197,94,0.3)',
+          borderRadius: 14,
+          padding: '12px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+          zIndex: 50,
+          animation: 'slideInRight 0.2s ease',
+        }}>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+            <strong style={{ color: 'var(--green)' }}>{selectedIds.length}</strong> empresa{selectedIds.length > 1 ? 's' : ''} selecionada{selectedIds.length > 1 ? 's' : ''}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={handleSaveLeadsAction}>
+              <Save size={13} /> Salvar
             </button>
-            <button 
-              onClick={handleSendWhatsApp}
-              className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-bold transition-all shadow-[0_0_20px_rgba(37,211,102,0.4)] flex items-center gap-2"
-            >
-              <Send size={16} /> <span>Enviar Proposta</span>
+            <button className="btn btn-primary btn-sm" onClick={() => setIsModalOpen(true)}>
+              <Send size={13} /> Enviar Proposta
             </button>
           </div>
         </div>
       )}
 
-      <CampaignModal 
+      <CampaignModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedLeads={filteredResults.filter(r => selectedIds.includes(r.id))}
