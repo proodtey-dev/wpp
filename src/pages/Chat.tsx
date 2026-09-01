@@ -3,22 +3,6 @@ import { MessageSquare, Send, Search, Phone, User, CheckCheck, Clock, Zap } from
 import { getConversations, getChatMessages, sendChatMessage } from '../lib/api';
 import { formatPhone } from '../lib/utils';
 
-const DEMO_CHAT_MESSAGES: Record<string, any[]> = {
-  '5511987654321': [
-    { id: 1, sender: 'me', body: 'Olá Dra. Ana Paula, vi que seu consultório odontológico não tem um site profissional. Crio o site para vocês sem nenhum custo inicial e você só paga se gostar do resultado!', timestamp: '14:20' },
-    { id: 2, sender: 'user', body: 'Olá! Sério mesmo? Como funciona essa proposta sem custo inicial?', timestamp: '14:22' }
-  ],
-  '5511933334444': [
-    { id: 1, sender: 'me', body: 'Olá Dr. Alves! Notamos que o seu escritório de advocacia ainda não possui um site moderno. Gostaria de ver um modelo pronto para sua área?', timestamp: '10:05' },
-    { id: 2, sender: 'user', body: 'Bom dia! Gostaria de ver sim. Quanto tempo demora para ficar pronto?', timestamp: '10:12' }
-  ]
-};
-
-const DEMO_CONVERSATIONS = [
-  { phone: '5511987654321', contactName: 'Dra. Ana Paula (Dentista)', lastMessage: 'Olá! Sério mesmo? Como funciona essa proposta...', timestamp: '14:22', unreadCount: 1 },
-  { phone: '5511933334444', contactName: 'Alves & Souza Advogados', lastMessage: 'Bom dia! Gostaria de ver sim. Quanto tempo...', timestamp: '10:12', unreadCount: 1 }
-];
-
 const QUICK_RESPONSES = [
   "Trabalho em até 48 horas! Crio a estrutura completa do site, te envio o link de aprovação e você só paga após aprovar tudo.",
   "Posso criar uma prévia gratuita do site para seu negócio hoje mesmo. Qual seria o principal serviço que você gostaria de destacar?",
@@ -35,13 +19,13 @@ const Chat = () => {
 
   const loadConversations = () => {
     getConversations().then(data => {
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setConversations(data);
       } else {
-        setConversations(DEMO_CONVERSATIONS);
+        setConversations([]);
       }
     }).catch(() => {
-      setConversations(DEMO_CONVERSATIONS);
+      setConversations([]);
     });
   };
 
@@ -53,15 +37,13 @@ const Chat = () => {
     if (selectedPhone) {
       setLoading(true);
       getChatMessages(selectedPhone).then(data => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setMessages(data);
-        } else if (DEMO_CHAT_MESSAGES[selectedPhone]) {
-          setMessages(DEMO_CHAT_MESSAGES[selectedPhone]);
         } else {
           setMessages([]);
         }
       }).catch(() => {
-        setMessages(DEMO_CHAT_MESSAGES[selectedPhone] || []);
+        setMessages([]);
       }).finally(() => {
         setLoading(false);
       });
@@ -130,7 +112,7 @@ const Chat = () => {
           <div className="flex-1 overflow-y-auto divide-y divide-[rgba(255,255,255,0.03)]">
             {filteredConvs.length === 0 ? (
               <div className="p-6 text-center text-xs text-[rgba(255,255,255,0.4)]">
-                Nenhuma conversa encontrada.
+                Nenhuma conversa iniciada ainda.
               </div>
             ) : (
               filteredConvs.map(conv => (
