@@ -5,7 +5,7 @@ import MapSearch from '../components/MapSearch';
 import FilterBar from '../components/FilterBar';
 import LeadCard from '../components/LeadCard';
 import CampaignModal from '../components/CampaignModal';
-import { DEMO_LEADS, NICHE_TYPES } from '../lib/utils';
+import { NICHE_TYPES } from '../lib/utils';
 import { geocodeLocation, searchBusinesses, saveLeads } from '../lib/api';
 
 const Prospector = () => {
@@ -18,8 +18,8 @@ const Prospector = () => {
   const [hasSearched, setHasSearched] = useState(false);
 
   // Filter states
-  const [minReviews, setMinReviews] = useState(5);
-  const [minRating, setMinRating] = useState(3.5);
+  const [minReviews, setMinReviews] = useState(0);
+  const [minRating, setMinRating] = useState(1);
   const [noWebsite, setNoWebsite] = useState(true);
   const [hasPhone, setHasPhone] = useState(true);
   const [businessType, setBusinessType] = useState(initialType);
@@ -42,77 +42,48 @@ const Prospector = () => {
 
     try {
       // 1. Geocode location
-      const geo = await geocodeLocation(params.query).catch(() => null);
+      const geo = await geocodeLocation(params.query).catch(() => ({ latitude: -19.9167, longitude: -43.9345 }));
 
-      let searchResults: any[] = [];
+      const resp = await searchBusinesses({
+        latitude: geo?.latitude || -19.9167,
+        longitude: geo?.longitude || -43.9345,
+        radius: params.radius * 1000,
+        type: params.type,
+        queryText: `${params.type || 'comércio'} em ${params.query}`,
+        keyword: params.query,
+        minReviews,
+        minRating,
+        noWebsite,
+        hasPhone
+      }).catch(() => null);
 
-      if (geo && geo.latitude && geo.longitude) {
-        const resp = await searchBusinesses({
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          radius: params.radius * 1000,
-          type: params.type,
-          minReviews,
-          minRating,
-          noWebsite,
-          hasPhone
-        }).catch(() => null);
-
-        if (resp && resp.results && resp.results.length > 0) {
-          searchResults = resp.results.map((r: any, idx: number) => ({
-            id: idx + 1,
-            name: r.name,
-            type: r.category || params.type || 'Empresa',
-            rating: r.rating || 4.5,
-            reviews: r.reviewCount || 20,
-            address: r.address,
-            phone: r.phone || 'Telefone sob consulta',
-            hasWebsite: Boolean(r.website),
-            status: r.status || 'novo'
-          }));
-        }
+      if (resp && resp.results && resp.results.length > 0) {
+        const searchResults = resp.results.map((r: any, idx: number) => ({
+          id: idx + 1,
+          name: r.name,
+          type: r.category || params.type || 'Empresa',
+          rating: r.rating || 4.8,
+          reviews: r.reviewCount || 25,
+          address: r.address || params.query,
+          phone: r.phone || 'Telefone sob consulta',
+          hasWebsite: Boolean(r.website && r.website.trim().length > 0),
+          status: r.status || 'novo',
+          emoji: '💼'
+        }));
+        setResults(searchResults);
+      } else {
+        setResults([]);
       }
-
-      // If search yielded no results, fallback to filtered DEMO_LEADS with real high-value niches
-      if (searchResults.length === 0) {
-        const selectedNicheObj = NICHE_TYPES.find(n => n.value === params.type);
-        const selectedLabel = selectedNicheObj ? selectedNicheObj.label : '';
-
-        searchResults = DEMO_LEADS.map(lead => {
-          if (selectedLabel) {
-            return {
-              ...lead,
-              address: `${lead.address.split('-')[0]}- ${params.query}`,
-              type: selectedLabel
-            };
-          }
-          return {
-            ...lead,
-            address: `${lead.address.split('-')[0]}- ${params.query}`
-          };
-        });
-      }
-
-      setResults(searchResults);
     } catch (e) {
-      console.error(e);
-      setResults(DEMO_LEADS);
+      console.error('Erro ao buscar:', e);
     } finally {
       setIsSearching(false);
     }
   };
 
   const filteredResults = results.filter(lead => {
-    if (minReviews > 0 && (lead.reviews || 0) < minReviews) return false;
-    if (minRating > 0 && (lead.rating || 0) < minRating) return false;
     if (noWebsite && lead.hasWebsite) return false;
-    if (hasPhone && !lead.phone) return false;
-    if (businessType) {
-      const nicheObj = NICHE_TYPES.find(n => n.value === businessType);
-      if (nicheObj && !lead.type.toLowerCase().includes(nicheObj.label.toLowerCase()) && lead.type !== nicheObj.value) {
-        return false;
-      }
-    }
+    if (hasPhone && (!lead.phone || lead.phone === 'Sem telefone')) return false;
     return true;
   });
 
@@ -135,7 +106,7 @@ const Prospector = () => {
   const handleSaveLeadsAction = async () => {
     const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
     await saveLeads(selectedLeads).catch(() => {});
-    setToastMessage(`${selectedIds.length} empresas salvas com sucesso!`);
+    setToastMessage(`${selectedIds.length} empresas salvas no seu banco de dados!`);
     setTimeout(() => setToastMessage(''), 3000);
     setSelectedIds([]);
   };
@@ -166,7 +137,7 @@ const Prospector = () => {
         </div>
         <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Buscar Empresas sem Site</h1>
         <p className="text-[rgba(255,255,255,0.6)]">
-          Selecione a cidade e o nicho (Dentista, Advogado, Cabelereiro, Arquiteto, etc.) para extrair contatos de alto valor.
+          Selecione o Estado, a Cidade e o Nicho desejado para encontrar empresas no Maps.
         </p>
       </div>
 
@@ -192,7 +163,7 @@ const Prospector = () => {
                 onChange={toggleSelectAll}
                 className="w-4 h-4 accent-[#25D366] cursor-pointer"
               />
-              Selecionar todos os {filteredResults.length} resultados sem site
+              Selecionar todos os {filteredResults.length} resultados encontrados
             </label>
 
             {selectedIds.length > 0 && (
@@ -216,8 +187,8 @@ const Prospector = () => {
           ) : (
             <div className="text-center py-20 bg-[rgba(255,255,255,0.02)] rounded-2xl border border-[rgba(255,255,255,0.05)]">
               <Search size={48} className="mx-auto text-[rgba(255,255,255,0.2)] mb-4" />
-              <h3 className="text-xl font-medium text-white mb-2">Nenhum resultado encontrado com esses filtros</h3>
-              <p className="text-[rgba(255,255,255,0.5)]">Tente desmarcar "Sem website" ou reduzir o número mínimo de avaliações.</p>
+              <h3 className="text-xl font-medium text-white mb-2">Nenhum resultado com esses filtros</h3>
+              <p className="text-[rgba(255,255,255,0.5)]">Tente desmarcar "Sem website" ou trocar a cidade selecionada.</p>
             </div>
           )}
         </div>

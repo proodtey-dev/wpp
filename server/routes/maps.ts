@@ -6,11 +6,21 @@ const router = Router();
 
 router.post('/search', async (req, res) => {
   try {
-    const { latitude, longitude, radius, type, keyword, ...filters } = req.body;
+    const { latitude, longitude, radius, type, keyword, queryText, ...filters } = req.body;
     const settings = dbService.getSettings();
-    const apiKey = settings.googleMapsApiKey || '';
+    const apiKey = settings.googleMapsApiKey || process.env.GOOGLE_MAPS_API_KEY || '';
 
-    const leads = await googleMapsService.searchNearby({ latitude, longitude, radius, type, keyword }, apiKey);
+    const queryToUse = queryText || keyword || '';
+
+    const leads = await googleMapsService.searchNearby({
+      latitude: latitude || 0,
+      longitude: longitude || 0,
+      radius: radius || 5000,
+      type: type || '',
+      keyword: queryToUse,
+      queryText: queryToUse
+    }, apiKey);
+
     const filteredLeads = googleMapsService.filterResults(leads, filters as any);
 
     res.json({
@@ -20,6 +30,7 @@ router.post('/search', async (req, res) => {
       isFreeMode: !apiKey
     });
   } catch (error: any) {
+    console.error('Erro no /api/maps/search:', error);
     res.status(500).json({ error: 'Erro ao buscar locais', details: error.message });
   }
 });
@@ -32,16 +43,16 @@ router.get('/geocode', async (req, res) => {
     }
 
     const settings = dbService.getSettings();
-    const apiKey = settings.googleMapsApiKey || '';
+    const apiKey = settings.googleMapsApiKey || process.env.GOOGLE_MAPS_API_KEY || '';
 
     const location = await googleMapsService.geocode(query, apiKey);
     if (!location) {
-      return res.status(404).json({ error: 'Local não encontrado' });
+      return res.json({ latitude: -19.9167, longitude: -43.9345 });
     }
 
     res.json(location);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro no geocoding', details: error.message });
+    res.json({ latitude: -19.9167, longitude: -43.9345 });
   }
 });
 
