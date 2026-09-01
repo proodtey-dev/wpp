@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Save, Send, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Search, Save, Send, Sparkles, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import MapSearch from '../components/MapSearch';
 import FilterBar from '../components/FilterBar';
 import LeadCard from '../components/LeadCard';
 import CampaignModal from '../components/CampaignModal';
-import { NICHE_TYPES } from '../lib/utils';
 import { geocodeLocation, searchBusinesses, saveLeads } from '../lib/api';
 
 const Prospector = () => {
@@ -16,6 +15,8 @@ const Prospector = () => {
   const [results, setResults] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastSearchParams, setLastSearchParams] = useState<{ query: string; radius: number; type: string } | null>(null);
 
   // Filter states
   const [minReviews, setMinReviews] = useState(0);
@@ -27,7 +28,6 @@ const Prospector = () => {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (initialType) {
@@ -35,22 +35,25 @@ const Prospector = () => {
     }
   }, [initialType]);
 
-  const handleSearch = async (params: { query: string; radius: number; type: string }) => {
+  const handleSearch = async (params: { query: string; radius: number; type: string }, pageNum: number = 1) => {
     setIsSearching(true);
     setHasSearched(true);
     setSelectedIds([]);
+    setCurrentPage(pageNum);
+    setLastSearchParams(params);
 
     try {
       // 1. Geocode location
-      const geo = await geocodeLocation(params.query).catch(() => ({ latitude: -19.9167, longitude: -43.9345 }));
+      const geo = await geocodeLocation(params.query).catch(() => ({ latitude: -16.6869, longitude: -49.2648 }));
 
       const resp = await searchBusinesses({
-        latitude: geo?.latitude || -19.9167,
-        longitude: geo?.longitude || -43.9345,
+        latitude: geo?.latitude || -16.6869,
+        longitude: geo?.longitude || -49.2648,
         radius: params.radius * 1000,
         type: params.type,
-        queryText: `${params.type || 'comércio'} em ${params.query}`,
+        queryText: params.query,
         keyword: params.query,
+        page: pageNum,
         minReviews,
         minRating,
         noWebsite,
@@ -59,11 +62,11 @@ const Prospector = () => {
 
       if (resp && resp.results && resp.results.length > 0) {
         const searchResults = resp.results.map((r: any, idx: number) => ({
-          id: idx + 1,
+          id: idx + 1 + (pageNum - 1) * 20,
           name: r.name,
           type: r.category || params.type || 'Empresa',
           rating: r.rating || 4.8,
-          reviews: r.reviewCount || 25,
+          reviews: r.reviewCount || 35,
           address: r.address || params.query,
           phone: r.phone || 'Telefone sob consulta',
           hasWebsite: Boolean(r.website && r.website.trim().length > 0),
@@ -76,8 +79,23 @@ const Prospector = () => {
       }
     } catch (e) {
       console.error('Erro ao buscar:', e);
+      setResults([]);
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (lastSearchParams) {
+      handleSearch(lastSearchParams, currentPage + 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (lastSearchParams && currentPage > 1) {
+      handleSearch(lastSearchParams, currentPage - 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
     }
   };
 
@@ -141,7 +159,7 @@ const Prospector = () => {
         </p>
       </div>
 
-      <MapSearch onSearch={handleSearch} isLoading={isSearching} initialType={initialType} />
+      <MapSearch onSearch={(p) => handleSearch(p, 1)} isLoading={isSearching} initialType={initialType} />
 
       {hasSearched && !isSearching && (
         <div className="mt-8">
@@ -163,7 +181,7 @@ const Prospector = () => {
                 onChange={toggleSelectAll}
                 className="w-4 h-4 accent-[#25D366] cursor-pointer"
               />
-              Selecionar todos os {filteredResults.length} resultados encontrados
+              Selecionar todos os {filteredResults.length} resultados encontrados (Página {currentPage})
             </label>
 
             {selectedIds.length > 0 && (
@@ -174,16 +192,43 @@ const Prospector = () => {
           </div>
 
           {filteredResults.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredResults.map(lead => (
-                <LeadCard 
-                  key={lead.id} 
-                  lead={lead} 
-                  selected={selectedIds.includes(lead.id)}
-                  onSelect={(checked) => toggleSelect(lead.id, checked)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredResults.map(lead => (
+                  <LeadCard 
+                    key={lead.id} 
+                    lead={lead} 
+                    selected={selectedIds.includes(lead.id)}
+                    onSelect={(checked) => toggleSelect(lead.id, checked)}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="mt-10 flex items-center justify-between bg-[rgba(255,255,255,0.03)] p-4 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)] text-white text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                >
+                  <ChevronLeft size={18} /> Página Anterior
+                </button>
+
+                <div className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Página</span>
+                  <span className="bg-[#25D366] text-black w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs">
+                    {currentPage}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleNextPage}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:opacity-90 text-white text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(37,211,102,0.3)]"
+                >
+                  <span>Próximos 20 Resultados</span> <ChevronRight size={18} />
+                </button>
+              </div>
+            </>
           ) : (
             <div className="text-center py-20 bg-[rgba(255,255,255,0.02)] rounded-2xl border border-[rgba(255,255,255,0.05)]">
               <Search size={48} className="mx-auto text-[rgba(255,255,255,0.2)] mb-4" />

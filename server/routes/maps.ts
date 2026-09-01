@@ -6,7 +6,7 @@ const router = Router();
 
 router.post('/search', async (req, res) => {
   try {
-    const { latitude, longitude, radius, type, keyword, queryText, ...filters } = req.body;
+    const { latitude, longitude, radius, type, keyword, queryText, page, ...filters } = req.body;
     const settings = dbService.getSettings();
     const apiKey = settings.googleMapsApiKey || process.env.GOOGLE_MAPS_API_KEY || '';
 
@@ -18,7 +18,8 @@ router.post('/search', async (req, res) => {
       radius: radius || 5000,
       type: type || '',
       keyword: queryToUse,
-      queryText: queryToUse
+      queryText: queryToUse,
+      page: Number(page) || 1
     }, apiKey);
 
     const filteredLeads = googleMapsService.filterResults(leads, filters as any);
@@ -27,6 +28,7 @@ router.post('/search', async (req, res) => {
       results: filteredLeads,
       total: leads.length,
       filtered: filteredLeads.length,
+      page: Number(page) || 1,
       isFreeMode: !apiKey
     });
   } catch (error: any) {

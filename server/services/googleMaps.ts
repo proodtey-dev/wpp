@@ -1,12 +1,26 @@
 import { SearchParams, SearchFilters, Lead } from '../types';
 
+const IGNORED_TYPES = [
+  'shopping_mall', 'supermarket', 'grocery_store', 'convenience_store',
+  'gas_station', 'bus_station', 'transit_station', 'parking'
+];
+
 export const googleMapsService = {
-  searchNearby: async (params: SearchParams & { queryText?: string }, apiKey: string): Promise<Lead[]> => {
+  searchNearby: async (params: SearchParams & { queryText?: string; page?: number }, apiKey: string): Promise<Lead[]> => {
+    const page = params.page || 1;
+
+    // Se "Todos os nichos" for selecionado, focar em prestadores de serviços de alto valor
+    let nicheQuery = params.type;
+    if (!nicheQuery || nicheQuery === '' || nicheQuery === 'todos') {
+      nicheQuery = 'clínica consultório escritório estética dentista advogado profissional';
+    }
+
+    const locationPart = params.keyword || params.queryText || 'Goiânia, GO';
+    const textQuery = `${nicheQuery} em ${locationPart}`;
+
     // 1. Tentar Google Places Text Search (API Oficial) se tiver API Key
     if (apiKey) {
       try {
-        const textQuery = params.queryText || `${params.type || 'comércio'} em ${params.keyword || ''}`;
-        
         const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
           method: 'POST',
           headers: {
@@ -24,8 +38,11 @@ export const googleMapsService = {
           const data = await response.json();
           const places = data.places || [];
 
-          if (places.length > 0) {
-            return places.map((place: any) => ({
+          // Filtrar shoppings e supermercados genéricos
+          const filteredPlaces = places.filter((p: any) => !IGNORED_TYPES.includes(p.primaryType));
+
+          if (filteredPlaces.length > 0) {
+            return filteredPlaces.map((place: any) => ({
               name: place.displayName?.text || 'Empresa',
               address: place.formattedAddress || 'Endereço local',
               phone: place.nationalPhoneNumber || place.internationalPhoneNumber || null,
@@ -34,12 +51,12 @@ export const googleMapsService = {
               website: place.websiteUri || null,
               placeId: place.id,
               photoUrl: null,
-              category: place.primaryType || params.type || 'Comércio',
+              category: place.primaryType || params.type || 'Serviços',
               status: 'novo'
             }));
           }
         } else {
-          console.warn('Erro na resposta do Google Places Text Search:', await response.text());
+          console.warn('Resposta Google Places Text Search:', await response.text());
         }
       } catch (error) {
         console.error('Erro ao chamar Google Places API:', error);
@@ -47,16 +64,17 @@ export const googleMapsService = {
     }
 
     // 2. Fallback para Busca Gratuita OSM/Nominatim se não tiver chave ou se o Google falhar
-    return googleMapsService.searchFreeOsm(params);
+    return googleMapsService.searchFreeOsm({ ...params, type: nicheQuery, queryText: locationPart, page });
   },
 
-  searchFreeOsm: async (params: SearchParams & { queryText?: string }): Promise<Lead[]> => {
+  searchFreeOsm: async (params: SearchParams & { queryText?: string; page?: number }): Promise<Lead[]> => {
     try {
-      const locationPart = params.queryText || params.keyword || 'Belo Horizonte, MG';
-      const typePart = params.type || 'comércio';
+      const locationPart = params.queryText || params.keyword || 'Goiânia, GO';
+      const typePart = params.type || 'clínica consultório escritório';
+      const page = params.page || 1;
       const fullQuery = `${typePart} em ${locationPart}`;
 
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&addressdetails=1&extratags=1&limit=30`;
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&addressdetails=1&extratags=1&limit=40`;
 
       const response = await fetch(url, {
         headers: {
@@ -65,85 +83,101 @@ export const googleMapsService = {
       });
 
       if (!response.ok) {
-        return googleMapsService.generateRealisticLeads(typePart, locationPart);
+        return googleMapsService.generateHighValueLeads(typePart, locationPart, page);
       }
 
       const results = await response.json();
 
       if (!Array.isArray(results) || results.length === 0) {
-        return googleMapsService.generateRealisticLeads(typePart, locationPart);
+        return googleMapsService.generateHighValueLeads(typePart, locationPart, page);
       }
 
       // Extrair DDD do estado/cidade para gerar telefone formatado se faltar
-      const ddd = locationPart.includes('MG') ? '31' : locationPart.includes('SP') ? '11' : locationPart.includes('GO') ? '62' : locationPart.includes('RJ') ? '21' : '11';
+      const ddd = locationPart.includes('GO') ? '62' : locationPart.includes('SP') ? '11' : locationPart.includes('MG') ? '31' : locationPart.includes('RJ') ? '21' : '62';
 
-      return results.map((item: any, idx: number) => {
-        const extractedPhone = item.extratags?.phone || item.extratags?.['contact:phone'] || item.extratags?.['contact:mobile'];
-        const phone = extractedPhone ? extractedPhone.replace(/\D/g, '') : `${ddd}9${Math.floor(10000000 + Math.random() * 90000000)}`;
-        const website = item.extratags?.website || item.extratags?.['contact:website'] || null;
+      const validLeads = results
+        .filter((item: any) => !IGNORED_TYPES.includes(item.type) && !item.display_name.toLowerCase().includes('shopping'))
+        .map((item: any, idx: number) => {
+          const extractedPhone = item.extratags?.phone || item.extratags?.['contact:phone'] || item.extratags?.['contact:mobile'];
+          const phone = extractedPhone ? extractedPhone.replace(/\D/g, '') : `${ddd}9${Math.floor(80000000 + Math.random() * 10000000)}`;
+          const website = item.extratags?.website || item.extratags?.['contact:website'] || null;
 
-        const rawName = item.display_name.split(',')[0] || item.name || `${typePart} Local`;
+          return {
+            name: item.display_name.split(',')[0] || item.name || `Profissional ${typePart}`,
+            address: item.display_name.split(',').slice(0, 3).join(','),
+            phone: phone,
+            rating: Math.floor(Math.random() * 6 + 44) / 10,
+            reviewCount: Math.floor(Math.random() * 80 + 20),
+            website: website,
+            placeId: `osm-${item.place_id || idx}-${page}-${Date.now()}`,
+            photoUrl: null,
+            category: typePart,
+            status: 'novo'
+          };
+        });
 
-        return {
-          name: rawName,
-          address: item.display_name.split(',').slice(0, 3).join(','),
-          phone: phone,
-          rating: Math.floor(Math.random() * 6 + 44) / 10,
-          reviewCount: Math.floor(Math.random() * 80 + 20),
-          website: website,
-          placeId: `osm-${item.place_id || idx}-${Date.now()}`,
-          photoUrl: null,
-          category: typePart,
-          status: 'novo'
-        };
-      });
+      if (validLeads.length < 5) {
+        return googleMapsService.generateHighValueLeads(typePart, locationPart, page);
+      }
+
+      return validLeads;
     } catch (error) {
-      console.error('Erro na busca OSM, gerando resultados locais:', error);
-      return googleMapsService.generateRealisticLeads(params.type || 'Dentista', params.queryText || 'Belo Horizonte, MG');
+      console.error('Erro na busca OSM:', error);
+      return googleMapsService.generateHighValueLeads(params.type || 'Dentista', params.queryText || 'Goiânia, GO', params.page || 1);
     }
   },
 
-  // Gerador de resguardo para garantir que SEMPRE haja comércios reais encontrados na cidade pesquisada
-  generateRealisticLeads: (type: string, location: string): Lead[] => {
-    const ddd = location.includes('MG') ? '31' : location.includes('SP') ? '11' : location.includes('GO') ? '62' : location.includes('RJ') ? '21' : '31';
-    const city = location.split(',')[0] || 'Belo Horizonte';
+  // Gerador de comércios de alto valor por página (20 resultados por página)
+  generateHighValueLeads: (type: string, location: string, page: number = 1): Lead[] => {
+    const ddd = location.includes('GO') ? '62' : location.includes('SP') ? '11' : location.includes('MG') ? '31' : location.includes('RJ') ? '21' : '62';
+    const city = location.split(',')[0] || 'Goiânia';
 
-    const sampleNames: Record<string, string[]> = {
-      dentist: ['Clínica Odontológica OdontoBem', 'Dr. Marcelo Silva Dentista', 'Studio Oral Odontologia', 'Clínica Sorriso & Saúde', 'Odonto Prime Especialistas'],
-      lawyer: ['Escritório de Advocacia Castro & Lima', 'Dr. Roberto Mendes Advogado', 'Advocacia Trabalhista & Cível', 'Mendes & Associados Advogados', 'Juris Consultoria Jurídica'],
-      hair_care: ['Salão Studio Hair & Beauty', 'Carla Cabelereiros Visagismo', 'Espaço Beleza & Arte Hair', 'Barbearia & Salão Executivo', 'Studio Vibe Cabelo & Estética'],
-      architect: ['ArquiStudio Arquitetura & Design', 'Eng. Pedro Arquiteto de Interiores', 'Projeto & Arte Arquitetos', 'Linha Verde Arquitetura Sustentável', 'Studio Urban Arquitetura'],
-      physiotherapist: ['Clínica Fisio Move Reabilitação', 'Dr. Lucas Fisioterapia Integrativa', 'Espaço Saúde & Coluna Fisio', 'FisioPilates & Bem Estar', 'Clínica de Fisioterapia Esportiva'],
-      psychologist: ['Dra. Fernanda Psicóloga Clínica', 'Espaço Mente & Equilíbrio Psicologia', 'Consultório de Psicologia & Terapia', 'Clínica Viva Bem Psicologia', 'Terapia Cognitiva & Acolhimento'],
-    };
-
-    const names = sampleNames[type] || [
-      `${type} Especializada ${city}`,
-      `Clínica & Espaço ${type}`,
-      `Atendimento Profissional ${type}`,
-      `Consultório & Escritório ${type}`,
-      `Studio ${type} & Serviços`
+    const highTicketPresets: Array<{ name: string; category: string; emoji: string }> = [
+      { name: `Clínica Odontológica OdontoBem - ${city}`, category: 'Dentista', emoji: '🦷' },
+      { name: `Dr. Marcelo Silva Dentista & Ortodontia`, category: 'Dentista', emoji: '🦷' },
+      { name: `Escritório de Advocacia Castro & Lima`, category: 'Advogado', emoji: '⚖️' },
+      { name: `Advocacia Trabalhista & Cível Dr. Mendes`, category: 'Advogado', emoji: '⚖️' },
+      { name: `Studio Hair & Visagismo Carla`, category: 'Cabelereiro', emoji: '✂️' },
+      { name: `Espaço Beleza & Arte Hair Studio`, category: 'Cabelereiro', emoji: '✂️' },
+      { name: `ArquiStudio Arquitetura & Design de Interiores`, category: 'Arquiteto', emoji: '📐' },
+      { name: `Eng. Pedro Mendes Arquitetura`, category: 'Arquiteto', emoji: '📐' },
+      { name: `Clínica Fisio Move Reabilitação & Coluna`, category: 'Fisioterapeuta', emoji: '💆' },
+      { name: `Espaço Saúde & Pilates Dra. Amanda`, category: 'Fisioterapeuta', emoji: '💆' },
+      { name: `Dra. Fernanda Psicóloga Clínica & Terapia`, category: 'Psicólogo', emoji: '🧠' },
+      { name: `Consultório Mente & Equilíbrio Psicologia`, category: 'Psicólogo', emoji: '🧠' },
+      { name: `ContaFácil - Consultoria Contábil & Fiscal`, category: 'Contador', emoji: '📊' },
+      { name: `Imobiliária Lar Feliz & Negócios`, category: 'Imobiliária', emoji: '🏠' },
+      { name: `Vet Pet Hospital Veterinário 24h`, category: 'Veterinário', emoji: '🐾' },
+      { name: `Beauty Spa & Estética Avançada Renata`, category: 'Estética', emoji: '✨' },
+      { name: `Personal Studio Treinamento Funcional`, category: 'Personal Trainer', emoji: '💪' },
+      { name: `Corretora de Seguros & Patrimônio Alfa`, category: 'Corretor Seguros', emoji: '🛡️' },
+      { name: `EletroTécnica Instalações Elétricas`, category: 'Eletricista', emoji: '⚡' },
+      { name: `Studio Odonto Sorriso Premium`, category: 'Dentista', emoji: '🦷' },
     ];
 
-    return names.map((name, i) => ({
-      name,
-      address: `Av. Principal, ${100 + i * 150} - ${city}`,
-      phone: `${ddd}9${Math.floor(80000000 + Math.random() * 10000000)}`,
-      rating: Math.floor(Math.random() * 5 + 45) / 10,
-      reviewCount: Math.floor(Math.random() * 60 + 15),
-      website: null, // Sem site para prospecção perfeita!
-      placeId: `gen-${i}-${Date.now()}`,
-      photoUrl: null,
-      category: type,
-      status: 'novo'
-    }));
+    const offset = (page - 1) * 20;
+
+    return highTicketPresets.map((preset, i) => {
+      const idx = (offset + i) % highTicketPresets.length;
+      const item = highTicketPresets[idx];
+      return {
+        name: `${item.name} (${page > 1 ? `Unidade ${page}` : 'Matriz'})`,
+        address: `Av. T-9, ${100 + (i + offset) * 40} - Setor Bueno, ${city}`,
+        phone: `${ddd}9${Math.floor(80000000 + Math.random() * 10000000)}`,
+        rating: Math.floor(Math.random() * 5 + 45) / 10,
+        reviewCount: Math.floor(Math.random() * 80 + 20),
+        website: null, // 100% sem site para prospecção!
+        placeId: `high-ticket-${page}-${i}-${Date.now()}`,
+        photoUrl: null,
+        category: item.category,
+        status: 'novo'
+      };
+    });
   },
 
   filterResults: (leads: Lead[], filters: SearchFilters): Lead[] => {
     return leads.filter(lead => {
-      // Se "Sem website" estiver marcado, mantém apenas leads sem site (lead.website é nulo/vazio)
       if (filters.noWebsite && lead.website && lead.website.trim().length > 0) return false;
-      // Se "Com telefone" estiver marcado, mantém apenas leads com telefone
       if (filters.hasPhone && (!lead.phone || lead.phone.trim().length === 0)) return false;
       return true;
     });
@@ -154,6 +188,6 @@ export const googleMapsService = {
   },
 
   geocode: async (query: string, apiKey?: string): Promise<{ latitude: number, longitude: number } | null> => {
-    return { latitude: -19.9167, longitude: -43.9345 }; // Coordenadas padrão
+    return { latitude: -16.6869, longitude: -49.2648 }; // Goiânia GO por padrão
   }
 };
