@@ -54,8 +54,8 @@ router.post('/send', async (req, res) => {
         const text = message.replace(/{nome}/g, lead.name);
 
         let result;
-        if (settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME) {
-          const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME;
+        const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
+        if (templateName) {
           result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
             token: settings.whatsappToken,
             phoneNumberId: settings.whatsappPhoneNumberId
