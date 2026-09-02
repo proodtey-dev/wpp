@@ -43,10 +43,10 @@ if (useTurso) {
   db.pragma('synchronous = NORMAL');
 }
 
-// Inicializar tabelas de forma assíncrona/síncrona
-async function initTables() {
-  const schema = `
-    CREATE TABLE IF NOT EXISTS leads (
+// Promessa de inicialização de tabelas
+const initPromise = (async () => {
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS leads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       address TEXT NOT NULL,
@@ -59,9 +59,8 @@ async function initTables() {
       category TEXT,
       status TEXT DEFAULT 'novo',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS campaigns (
+    )`,
+    `CREATE TABLE IF NOT EXISTS campaigns (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       templateName TEXT,
@@ -73,9 +72,8 @@ async function initTables() {
       failed INTEGER DEFAULT 0,
       status TEXT DEFAULT 'rascunho',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS messages (
+    )`,
+    `CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       campaignId INTEGER NOT NULL,
       leadId INTEGER NOT NULL,
@@ -85,14 +83,12 @@ async function initTables() {
       sentAt DATETIME,
       FOREIGN KEY(campaignId) REFERENCES campaigns(id),
       FOREIGN KEY(leadId) REFERENCES leads(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
+    )`,
+    `CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS chat_messages (
+    )`,
+    `CREATE TABLE IF NOT EXISTS chat_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       phone TEXT NOT NULL,
       contactName TEXT,
@@ -102,20 +98,19 @@ async function initTables() {
       deliveryStatus TEXT DEFAULT 'sent',
       status TEXT DEFAULT 'unread',
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+    )`
+  ];
 
   if (useTurso) {
-    const statements = schema.split(';').map(s => s.trim()).filter(s => s.length > 0);
     for (const stmt of statements) {
       await client.execute(stmt);
     }
   } else {
-    db.exec(schema);
+    for (const stmt of statements) {
+      db.exec(stmt);
+    }
   }
-}
-
-initTables().catch(err => console.error('Erro ao inicializar banco:', err));
+})().catch(err => console.error('Erro ao inicializar tabelas:', err));
 
 const DEFAULT_SETTINGS = {
   googleMapsApiKey: '',
@@ -125,9 +120,14 @@ const DEFAULT_SETTINGS = {
   defaultMessage: "Olá {nome}! Somos especialistas em criação de sites profissionais. Notamos que {nome} ainda não possui um site — gostaríamos de apresentar uma proposta que pode aumentar suas vendas. Posso te enviar mais detalhes?"
 };
 
+async function ensureInit() {
+  await initPromise;
+}
+
 export const dbService = {
   // Leads
   createLead: async (lead: Lead): Promise<number> => {
+    await ensureInit();
     if (useTurso) {
       const res = await client.execute({
         sql: `INSERT OR IGNORE INTO leads (name, address, phone, rating, reviewCount, website, placeId, photoUrl, category, status)
@@ -146,6 +146,7 @@ export const dbService = {
   },
 
   getAllLeads: async (status?: string): Promise<Lead[]> => {
+    await ensureInit();
     if (useTurso) {
       const res = status
         ? await client.execute({ sql: 'SELECT * FROM leads WHERE status = ? ORDER BY createdAt DESC', args: [status] })
@@ -299,6 +300,7 @@ export const dbService = {
 
   // Chat / CRM
   saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string }) => {
+    await ensureInit();
     const cleanPhone = msg.phone.replace(/\D/g, '');
     if (useTurso) {
       await client.execute({
@@ -326,6 +328,7 @@ export const dbService = {
   },
 
   getConversations: async () => {
+    await ensureInit();
     const sql = `
       SELECT 
         cm.phone,
@@ -353,6 +356,7 @@ export const dbService = {
   },
 
   getChatMessagesByPhone: async (phone: string) => {
+    await ensureInit();
     const cleanPhone = phone.replace(/\D/g, '');
     if (useTurso) {
       await client.execute({ sql: "UPDATE chat_messages SET status = 'read' WHERE phone = ? AND sender = 'user'", args: [cleanPhone] });
@@ -366,6 +370,7 @@ export const dbService = {
 
   // Configurações
   getSettings: async (): Promise<Settings> => {
+    await ensureInit();
     let rows: { key: string; value: string }[] = [];
     if (useTurso) {
       const res = await client.execute('SELECT key, value FROM settings');
