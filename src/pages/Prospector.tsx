@@ -5,7 +5,7 @@ import MapSearch from '../components/MapSearch';
 import FilterBar from '../components/FilterBar';
 import LeadCard from '../components/LeadCard';
 import CampaignModal from '../components/CampaignModal';
-import { geocodeLocation, searchBusinesses, saveLeads } from '../lib/api';
+import { geocodeLocation, searchBusinesses, saveLeads, sendWhatsApp } from '../lib/api';
 
 const Prospector = () => {
   const [searchParams] = useSearchParams();
@@ -120,8 +120,24 @@ const Prospector = () => {
   };
 
   const handleCampaignSend = async (name: string, msg: string) => {
-    showToast(`Campanha "${name}" iniciada com sucesso!`);
-    setSelectedIds([]);
+    try {
+      // 1. Salva os leads primeiro
+      const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
+      const saveRes = await saveLeads(selectedLeads).catch(() => null);
+      const savedLeadIds = saveRes?.ids || selectedIds;
+
+      // 2. Dispara a campanha via backend
+      await sendWhatsApp({
+        leadIds: savedLeadIds,
+        message: msg,
+        campaignName: name
+      });
+
+      showToast(`Campanha "${name}" enviada! Acompanhe no Chat/CRM.`);
+      setSelectedIds([]);
+    } catch (e: any) {
+      showToast('Erro ao disparar campanha: ' + (e.message || 'Falha na conexão'));
+    }
   };
 
   return (

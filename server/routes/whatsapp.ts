@@ -53,15 +53,34 @@ router.post('/send', async (req, res) => {
 
         const text = message.replace(/{nome}/g, lead.name);
 
-        const result = await whatsappService.sendTextMessage(lead.phone, text, {
-          token: settings.whatsappToken,
-          phoneNumberId: settings.whatsappPhoneNumberId
-        });
+        let result;
+        if (settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME) {
+          const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME;
+          result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
+            token: settings.whatsappToken,
+            phoneNumberId: settings.whatsappPhoneNumberId
+          });
+        } else {
+          result = await whatsappService.sendTextMessage(lead.phone, text, {
+            token: settings.whatsappToken,
+            phoneNumberId: settings.whatsappPhoneNumberId
+          });
+        }
 
         if (result.success) {
           sentCount++;
           await dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
           await dbService.updateLead(id, { status: 'contatado' });
+
+          // Registra a mensagem enviada no Chat / CRM
+          await dbService.saveChatMessage({
+            phone: lead.phone,
+            contactName: lead.name,
+            sender: 'me',
+            body: text,
+            waMessageId: result.messageId,
+            deliveryStatus: 'sent'
+          });
         } else {
           failedCount++;
           await dbService.updateMessageStatus(msgId, 'falhou', result.error);
