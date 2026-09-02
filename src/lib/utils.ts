@@ -39,13 +39,11 @@ export const NICHE_TYPES = [
 // Mensagem de prospecção — proposta de valor clara: sem risco, paga só depois
 export const DEFAULT_MESSAGE = `Olá {nome}, tudo bem?
 
-Sou desenvolvedor web e vi que vocês ainda não têm um site profissional.
+Sou desenvolvedor de sites e notei que vocês ainda não possuem um site profissional.
 
-Tenho uma proposta diferente: *crio o site completo para vocês sem nenhum custo inicial*. Você só paga depois de ver o resultado pronto e aprovado — sem risco nenhum.
+Tenho uma proposta sem risco para você: eu crio a estrutura completa do site, te envio para você avaliar e você só paga após aprovar o resultado final!
 
-Um site profissional pode trazer muito mais clientes para {nome}, especialmente pelo Google. Posso te mostrar alguns exemplos?
-
-Abraço! 😊`;
+Posso criar o seu site sem compromisso?`;
 
 export const DEMO_LEADS: any[] = [];
 
