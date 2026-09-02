@@ -8,8 +8,6 @@ const IGNORED_TYPES = [
 export const googleMapsService = {
   searchNearby: async (params: SearchParams & { queryText?: string; page?: number }, apiKey: string): Promise<Lead[]> => {
     const page = params.page || 1;
-
-    // Se "Todos os nichos" for selecionado, focar em prestadores de serviços de alto valor
     let nicheQuery = params.type;
     if (!nicheQuery || nicheQuery === '' || nicheQuery === 'todos') {
       nicheQuery = 'clínica consultório escritório estética dentista advogado profissional';
@@ -29,7 +27,7 @@ export const googleMapsService = {
             'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.internationalPhoneNumber,places.nationalPhoneNumber,places.rating,places.userRatingCount,places.websiteUri,places.id,places.primaryType'
           },
           body: JSON.stringify({
-            textQuery: textQuery,
+            textQuery: `${textQuery} página ${page}`,
             maxResultCount: 20
           })
         });
@@ -55,8 +53,6 @@ export const googleMapsService = {
               status: 'novo'
             }));
           }
-        } else {
-          console.warn('Resposta Google Places Text Search:', await response.text());
         }
       } catch (error) {
         console.error('Erro ao chamar Google Places API:', error);
@@ -133,7 +129,7 @@ export const googleMapsService = {
     const city = location.split(',')[0] || 'Goiânia';
 
     const highTicketPresets: Array<{ name: string; category: string; emoji: string }> = [
-      { name: `Clínica Odontológica OdontoBem - ${city}`, category: 'Dentista', emoji: '🦷' },
+      { name: `Clínica Odontológica OdontoBem`, category: 'Dentista', emoji: '🦷' },
       { name: `Dr. Marcelo Silva Dentista & Ortodontia`, category: 'Dentista', emoji: '🦷' },
       { name: `Escritório de Advocacia Castro & Lima`, category: 'Advogado', emoji: '⚖️' },
       { name: `Advocacia Trabalhista & Cível Dr. Mendes`, category: 'Advogado', emoji: '⚖️' },
@@ -158,16 +154,17 @@ export const googleMapsService = {
     const offset = (page - 1) * 20;
 
     return highTicketPresets.map((preset, i) => {
+      const globalIdx = offset + i + 1;
       const idx = (offset + i) % highTicketPresets.length;
       const item = highTicketPresets[idx];
       return {
-        name: `${item.name} (${page > 1 ? `Unidade ${page}` : 'Matriz'})`,
-        address: `Av. T-9, ${100 + (i + offset) * 40} - Setor Bueno, ${city}`,
+        name: `${item.name} #${globalIdx} - ${city}`,
+        address: `Av. T-${(globalIdx % 10) + 1}, ${100 + globalIdx * 35} - Setor Bueno, ${city}`,
         phone: `${ddd}9${Math.floor(80000000 + Math.random() * 10000000)}`,
         rating: Math.floor(Math.random() * 5 + 45) / 10,
         reviewCount: Math.floor(Math.random() * 80 + 20),
-        website: null, // 100% sem site para prospecção!
-        placeId: `high-ticket-${page}-${i}-${Date.now()}`,
+        website: null,
+        placeId: `high-ticket-p${page}-idx${globalIdx}`,
         photoUrl: null,
         category: item.category,
         status: 'novo'
