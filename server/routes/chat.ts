@@ -61,7 +61,7 @@ const handleWebhookVerification = (req: any, res: any) => {
   res.status(200).send(String(challenge || 'OK'));
 };
 
-const handleWebhookEvent = (req: any, res: any) => {
+const handleWebhookEvent = async (req: any, res: any) => {
   try {
     const body = req.body;
 
@@ -77,7 +77,7 @@ const handleWebhookEvent = (req: any, res: any) => {
         const contactName = value.contacts?.[0]?.profile?.name || 'Cliente';
         const msgText = msgObj.text?.body || msgObj.caption || '[Mídia / Botão]';
 
-        dbService.saveChatMessage({
+        await dbService.saveChatMessage({
           phone: fromPhone,
           contactName,
           sender: 'user',
@@ -87,9 +87,10 @@ const handleWebhookEvent = (req: any, res: any) => {
         });
 
         // Update lead status if exists
-        const lead = dbService.getAllLeads().find(l => l.phone && l.phone.replace(/\D/g, '') === fromPhone);
+        const leads = await dbService.getAllLeads();
+        const lead = leads.find(l => l.phone && l.phone.replace(/\D/g, '') === fromPhone);
         if (lead && lead.id) {
-          dbService.updateLead(lead.id, { status: 'respondeu' });
+          await dbService.updateLead(lead.id, { status: 'respondeu' });
         }
 
         // Broadcast new message to all SSE clients in real time
@@ -110,7 +111,7 @@ const handleWebhookEvent = (req: any, res: any) => {
 
         if (waMessageId) {
           const deliveryStatus = errors ? 'failed' : status;
-          dbService.updateChatMessageDelivery(waMessageId, deliveryStatus);
+          await dbService.updateChatMessageDelivery(waMessageId, deliveryStatus);
 
           broadcastToSSE('message_status', {
             waMessageId,
@@ -136,9 +137,9 @@ router.post('/', handleWebhookEvent);
 router.post('/webhook', handleWebhookEvent);
 
 // List all chat conversations
-router.get('/conversations', (req, res) => {
+router.get('/conversations', async (req, res) => {
   try {
-    const conversations = dbService.getConversations();
+    const conversations = await dbService.getConversations();
     res.json(conversations);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -146,9 +147,9 @@ router.get('/conversations', (req, res) => {
 });
 
 // Get messages for a specific phone number
-router.get('/messages/:phone', (req, res) => {
+router.get('/messages/:phone', async (req, res) => {
   try {
-    const messages = dbService.getChatMessagesByPhone(req.params.phone);
+    const messages = await dbService.getChatMessagesByPhone(req.params.phone);
     res.json(messages);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -163,7 +164,7 @@ router.post('/send', async (req, res) => {
       return res.status(400).json({ error: 'phone e body são obrigatórios' });
     }
 
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
     const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
 
@@ -180,7 +181,7 @@ router.post('/send', async (req, res) => {
     const deliveryStatus = waResult.success ? 'sent' : 'failed';
 
     // Save to database with delivery status
-    dbService.saveChatMessage({
+    await dbService.saveChatMessage({
       phone,
       contactName,
       sender: 'me',

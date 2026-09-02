@@ -5,9 +5,9 @@ import { googleMapsService } from '../services/googleMaps';
 
 const router = Router();
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     
     // Mascarar tokens sensíveis
     const maskedSettings = {
@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
   }
 });
 
-router.put('/', (req, res) => {
+router.put('/', async (req, res) => {
   try {
     const newSettings = req.body;
     
@@ -34,7 +34,7 @@ router.put('/', (req, res) => {
       delete newSettings.googleMapsApiKey;
     }
 
-    dbService.updateSettings(newSettings);
+    await dbService.updateSettings(newSettings);
     res.json({ message: 'Configurações atualizadas com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao atualizar configurações', details: error.message });
@@ -44,7 +44,8 @@ router.put('/', (req, res) => {
 router.post('/test-google', async (req, res) => {
   try {
     const { apiKey } = req.body;
-    const key = apiKey || dbService.getSettings().googleMapsApiKey;
+    const settings = await dbService.getSettings();
+    const key = apiKey || settings.googleMapsApiKey;
     
     if (!key) {
       return res.status(400).json({ error: 'Chave da API não fornecida' });
@@ -65,7 +66,7 @@ router.post('/test-google', async (req, res) => {
 router.post('/test-whatsapp', async (req, res) => {
   try {
     const { token, phoneNumberId } = req.body;
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     
     const config = {
       token: token || settings.whatsappToken,

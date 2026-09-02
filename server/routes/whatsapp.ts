@@ -12,12 +12,12 @@ router.post('/send', async (req, res) => {
       return res.status(400).json({ error: 'IDs dos leads são obrigatórios' });
     }
 
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     if (!settings.whatsappToken || !settings.whatsappPhoneNumberId) {
       return res.status(400).json({ error: 'Credenciais do WhatsApp não configuradas' });
     }
 
-    const campaignId = dbService.createCampaign({
+    const campaignId = await dbService.createCampaign({
       name: campaignName || 'Campanha sem nome',
       templateName: '',
       message,
@@ -37,13 +37,13 @@ router.post('/send', async (req, res) => {
       let failedCount = 0;
 
       for (const id of leadIds) {
-        const lead = dbService.getLeadById(id);
+        const lead = await dbService.getLeadById(id);
         if (!lead || !lead.phone) {
           failedCount++;
           continue;
         }
 
-        const msgId = dbService.createMessage({
+        const msgId = await dbService.createMessage({
           campaignId,
           leadId: id,
           waMessageId: null,
@@ -60,20 +60,20 @@ router.post('/send', async (req, res) => {
 
         if (result.success) {
           sentCount++;
-          dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
-          dbService.updateLead(id, { status: 'contatado' });
+          await dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
+          await dbService.updateLead(id, { status: 'contatado' });
         } else {
           failedCount++;
-          dbService.updateMessageStatus(msgId, 'falhou', result.error);
+          await dbService.updateMessageStatus(msgId, 'falhou', result.error);
         }
 
-        dbService.updateCampaign(campaignId, { sent: sentCount, failed: failedCount });
+        await dbService.updateCampaign(campaignId, { sent: sentCount, failed: failedCount });
 
         // Delay de 1 segundo para evitar rate limit
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      dbService.updateCampaign(campaignId, { status: 'concluida' });
+      await dbService.updateCampaign(campaignId, { status: 'concluida' });
     })();
 
   } catch (error: any) {
@@ -81,23 +81,23 @@ router.post('/send', async (req, res) => {
   }
 });
 
-router.get('/campaigns', (req, res) => {
+router.get('/campaigns', async (req, res) => {
   try {
-    const campaigns = dbService.getAllCampaigns();
+    const campaigns = await dbService.getAllCampaigns();
     res.json(campaigns);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar campanhas', details: error.message });
   }
 });
 
-router.get('/campaigns/:id', (req, res) => {
+router.get('/campaigns/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const campaign = dbService.getCampaignById(id);
+    const campaign = await dbService.getCampaignById(id);
     if (!campaign) {
       return res.status(404).json({ error: 'Campanha não encontrada' });
     }
-    const messages = dbService.getMessagesByCampaign(id);
+    const messages = await dbService.getMessagesByCampaign(id);
     res.json({ ...campaign, messages });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar detalhes da campanha', details: error.message });
@@ -106,7 +106,7 @@ router.get('/campaigns/:id', (req, res) => {
 
 router.post('/test', async (req, res) => {
   try {
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     if (!settings.whatsappToken || !settings.whatsappPhoneNumberId) {
       return res.status(400).json({ error: 'Credenciais não configuradas' });
     }
@@ -124,7 +124,7 @@ router.post('/test', async (req, res) => {
 
 router.get('/templates', async (req, res) => {
   try {
-    const settings = dbService.getSettings();
+    const settings = await dbService.getSettings();
     if (!settings.whatsappToken || !settings.whatsappWabaId) {
       return res.status(400).json({ error: 'WABA ID e Token não configurados' });
     }

@@ -1,98 +1,121 @@
+import { createClient } from '@libsql/client';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { Lead, Campaign, Message, Settings } from '../types';
 
-// Determinar path do banco de dados
-// Tenta usar /data (Render Persistent Disk) ou SQLITE_PATH env, senão usa cwd
-function getDbPath(): string {
-  const envPath = process.env.SQLITE_PATH;
-  if (envPath) return envPath;
+const tursoUrl = process.env.TURSO_DATABASE_URL;
+const tursoToken = process.env.TURSO_AUTH_TOKEN;
 
-  if (process.env.NODE_ENV === 'production') {
-    // Tenta criar /data se não existir
-    try {
-      if (!fs.existsSync('/data')) {
-        fs.mkdirSync('/data', { recursive: true });
+const useTurso = Boolean(tursoUrl && tursoToken);
+
+let client: any = null;
+let db: any = null;
+
+if (useTurso) {
+  console.log(`🌐 Usando Turso Cloud Database: ${tursoUrl}`);
+  client = createClient({
+    url: tursoUrl!,
+    authToken: tursoToken!,
+  });
+} else {
+  function getDbPath(): string {
+    const envPath = process.env.SQLITE_PATH;
+    if (envPath) return envPath;
+
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        if (!fs.existsSync('/data')) {
+          fs.mkdirSync('/data', { recursive: true });
+        }
+        return '/data/prospector.db';
+      } catch {
+        return path.join(process.cwd(), 'prospector.db');
       }
-      return '/data/prospector.db';
-    } catch {
-      // Fallback para diretório do projeto
-      return path.join(process.cwd(), 'prospector.db');
     }
+    return path.join(process.cwd(), 'prospector.db');
   }
-  return path.join(process.cwd(), 'prospector.db');
+
+  const DB_PATH = getDbPath();
+  console.log(`📂 Usando SQLite Local: ${DB_PATH}`);
+  db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
 }
 
-const DB_PATH = getDbPath();
-console.log(`📂 Banco de dados: ${DB_PATH}`);
+// Inicializar tabelas de forma assíncrona/síncrona
+async function initTables() {
+  const schema = `
+    CREATE TABLE IF NOT EXISTS leads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      phone TEXT,
+      rating REAL,
+      reviewCount INTEGER,
+      website TEXT,
+      placeId TEXT UNIQUE NOT NULL,
+      photoUrl TEXT,
+      category TEXT,
+      status TEXT DEFAULT 'novo',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 
-const db = new Database(DB_PATH);
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      templateName TEXT,
+      message TEXT NOT NULL,
+      totalLeads INTEGER DEFAULT 0,
+      sent INTEGER DEFAULT 0,
+      delivered INTEGER DEFAULT 0,
+      read INTEGER DEFAULT 0,
+      failed INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'rascunho',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 
-// Melhorar performance SQLite
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL');
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaignId INTEGER NOT NULL,
+      leadId INTEGER NOT NULL,
+      waMessageId TEXT,
+      status TEXT DEFAULT 'pendente',
+      error TEXT,
+      sentAt DATETIME,
+      FOREIGN KEY(campaignId) REFERENCES campaigns(id),
+      FOREIGN KEY(leadId) REFERENCES leads(id)
+    );
 
-// Inicializar banco de dados
-db.exec(`
-  CREATE TABLE IF NOT EXISTS leads (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    phone TEXT,
-    rating REAL,
-    reviewCount INTEGER,
-    website TEXT,
-    placeId TEXT UNIQUE NOT NULL,
-    photoUrl TEXT,
-    category TEXT,
-    status TEXT DEFAULT 'novo',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
 
-  CREATE TABLE IF NOT EXISTS campaigns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    templateName TEXT,
-    message TEXT NOT NULL,
-    totalLeads INTEGER DEFAULT 0,
-    sent INTEGER DEFAULT 0,
-    delivered INTEGER DEFAULT 0,
-    read INTEGER DEFAULT 0,
-    failed INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'rascunho',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT NOT NULL,
+      contactName TEXT,
+      sender TEXT NOT NULL,
+      body TEXT NOT NULL,
+      waMessageId TEXT,
+      deliveryStatus TEXT DEFAULT 'sent',
+      status TEXT DEFAULT 'unread',
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
 
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    campaignId INTEGER NOT NULL,
-    leadId INTEGER NOT NULL,
-    waMessageId TEXT,
-    status TEXT DEFAULT 'pendente',
-    error TEXT,
-    sentAt DATETIME,
-    FOREIGN KEY(campaignId) REFERENCES campaigns(id),
-    FOREIGN KEY(leadId) REFERENCES leads(id)
-  );
+  if (useTurso) {
+    const statements = schema.split(';').map(s => s.trim()).filter(s => s.length > 0);
+    for (const stmt of statements) {
+      await client.execute(stmt);
+    }
+  } else {
+    db.exec(schema);
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phone TEXT NOT NULL,
-    contactName TEXT,
-    sender TEXT NOT NULL,
-    body TEXT NOT NULL,
-    waMessageId TEXT,
-    deliveryStatus TEXT DEFAULT 'sent',
-    status TEXT DEFAULT 'unread',
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+initTables().catch(err => console.error('Erro ao inicializar banco:', err));
 
 const DEFAULT_SETTINGS = {
   googleMapsApiKey: '',
@@ -104,109 +127,206 @@ const DEFAULT_SETTINGS = {
 
 export const dbService = {
   // Leads
-  createLead: (lead: Lead): number => {
-    const stmt = db.prepare(`
-      INSERT OR IGNORE INTO leads (name, address, phone, rating, reviewCount, website, placeId, photoUrl, category, status)
-      VALUES (@name, @address, @phone, @rating, @reviewCount, @website, @placeId, @photoUrl, @category, @status)
-    `);
-    const result = stmt.run(lead);
-    return result.lastInsertRowid as number;
-  },
-
-  getAllLeads: (status?: string): Lead[] => {
-    if (status) {
-      return db.prepare('SELECT * FROM leads WHERE status = ? ORDER BY createdAt DESC').all(status) as Lead[];
+  createLead: async (lead: Lead): Promise<number> => {
+    if (useTurso) {
+      const res = await client.execute({
+        sql: `INSERT OR IGNORE INTO leads (name, address, phone, rating, reviewCount, website, placeId, photoUrl, category, status)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [lead.name, lead.address, lead.phone || null, lead.rating || null, lead.reviewCount || null, lead.website || null, lead.placeId, lead.photoUrl || null, lead.category || null, lead.status || 'novo']
+      });
+      return Number(res.lastInsertRowid || 0);
+    } else {
+      const stmt = db.prepare(`
+        INSERT OR IGNORE INTO leads (name, address, phone, rating, reviewCount, website, placeId, photoUrl, category, status)
+        VALUES (@name, @address, @phone, @rating, @reviewCount, @website, @placeId, @photoUrl, @category, @status)
+      `);
+      const result = stmt.run(lead);
+      return result.lastInsertRowid as number;
     }
-    return db.prepare('SELECT * FROM leads ORDER BY createdAt DESC').all() as Lead[];
   },
 
-  getLeadById: (id: number): Lead | undefined => {
-    return db.prepare('SELECT * FROM leads WHERE id = ?').get(id) as Lead | undefined;
+  getAllLeads: async (status?: string): Promise<Lead[]> => {
+    if (useTurso) {
+      const res = status
+        ? await client.execute({ sql: 'SELECT * FROM leads WHERE status = ? ORDER BY createdAt DESC', args: [status] })
+        : await client.execute('SELECT * FROM leads ORDER BY createdAt DESC');
+      return res.rows as unknown as Lead[];
+    } else {
+      if (status) {
+        return db.prepare('SELECT * FROM leads WHERE status = ? ORDER BY createdAt DESC').all(status) as Lead[];
+      }
+      return db.prepare('SELECT * FROM leads ORDER BY createdAt DESC').all() as Lead[];
+    }
   },
 
-  getByPlaceId: (placeId: string): Lead | undefined => {
-    return db.prepare('SELECT * FROM leads WHERE placeId = ?').get(placeId) as Lead | undefined;
+  getLeadById: async (id: number): Promise<Lead | undefined> => {
+    if (useTurso) {
+      const res = await client.execute({ sql: 'SELECT * FROM leads WHERE id = ?', args: [id] });
+      return res.rows[0] as unknown as Lead | undefined;
+    } else {
+      return db.prepare('SELECT * FROM leads WHERE id = ?').get(id) as Lead | undefined;
+    }
   },
 
-  updateLead: (id: number, lead: Partial<Lead>) => {
-    const sets = Object.keys(lead).map(k => `${k} = @${k}`).join(', ');
-    const stmt = db.prepare(`UPDATE leads SET ${sets} WHERE id = @id`);
-    stmt.run({ ...lead, id });
+  getByPlaceId: async (placeId: string): Promise<Lead | undefined> => {
+    if (useTurso) {
+      const res = await client.execute({ sql: 'SELECT * FROM leads WHERE placeId = ?', args: [placeId] });
+      return res.rows[0] as unknown as Lead | undefined;
+    } else {
+      return db.prepare('SELECT * FROM leads WHERE placeId = ?').get(placeId) as Lead | undefined;
+    }
   },
 
-  deleteLead: (id: number) => {
-    db.prepare('DELETE FROM leads WHERE id = ?').run(id);
+  updateLead: async (id: number, lead: Partial<Lead>) => {
+    const keys = Object.keys(lead);
+    if (keys.length === 0) return;
+    if (useTurso) {
+      const sets = keys.map(k => `${k} = ?`).join(', ');
+      const args = [...Object.values(lead), id];
+      await client.execute({ sql: `UPDATE leads SET ${sets} WHERE id = ?`, args });
+    } else {
+      const sets = keys.map(k => `${k} = @${k}`).join(', ');
+      const stmt = db.prepare(`UPDATE leads SET ${sets} WHERE id = @id`);
+      stmt.run({ ...lead, id });
+    }
   },
 
-  getLeadStats: () => {
-    return db.prepare('SELECT status, COUNT(*) as count FROM leads GROUP BY status').all();
+  deleteLead: async (id: number) => {
+    if (useTurso) {
+      await client.execute({ sql: 'DELETE FROM leads WHERE id = ?', args: [id] });
+    } else {
+      db.prepare('DELETE FROM leads WHERE id = ?').run(id);
+    }
+  },
+
+  getLeadStats: async () => {
+    if (useTurso) {
+      const res = await client.execute('SELECT status, COUNT(*) as count FROM leads GROUP BY status');
+      return res.rows;
+    } else {
+      return db.prepare('SELECT status, COUNT(*) as count FROM leads GROUP BY status').all();
+    }
   },
 
   // Campanhas
-  createCampaign: (campaign: Campaign): number => {
-    const stmt = db.prepare(`
-      INSERT INTO campaigns (name, templateName, message, totalLeads, status)
-      VALUES (@name, @templateName, @message, @totalLeads, @status)
-    `);
-    const result = stmt.run(campaign);
-    return result.lastInsertRowid as number;
+  createCampaign: async (campaign: Campaign): Promise<number> => {
+    if (useTurso) {
+      const res = await client.execute({
+        sql: `INSERT INTO campaigns (name, templateName, message, totalLeads, status) VALUES (?, ?, ?, ?, ?)`,
+        args: [campaign.name, campaign.templateName || null, campaign.message, campaign.totalLeads || 0, campaign.status || 'rascunho']
+      });
+      return Number(res.lastInsertRowid || 0);
+    } else {
+      const stmt = db.prepare(`
+        INSERT INTO campaigns (name, templateName, message, totalLeads, status)
+        VALUES (@name, @templateName, @message, @totalLeads, @status)
+      `);
+      const result = stmt.run(campaign);
+      return result.lastInsertRowid as number;
+    }
   },
 
-  getAllCampaigns: (): Campaign[] => {
-    return db.prepare('SELECT * FROM campaigns ORDER BY createdAt DESC').all() as Campaign[];
+  getAllCampaigns: async (): Promise<Campaign[]> => {
+    if (useTurso) {
+      const res = await client.execute('SELECT * FROM campaigns ORDER BY createdAt DESC');
+      return res.rows as unknown as Campaign[];
+    } else {
+      return db.prepare('SELECT * FROM campaigns ORDER BY createdAt DESC').all() as Campaign[];
+    }
   },
 
-  getCampaignById: (id: number): Campaign | undefined => {
-    return db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as Campaign | undefined;
+  getCampaignById: async (id: number): Promise<Campaign | undefined> => {
+    if (useTurso) {
+      const res = await client.execute({ sql: 'SELECT * FROM campaigns WHERE id = ?', args: [id] });
+      return res.rows[0] as unknown as Campaign | undefined;
+    } else {
+      return db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as Campaign | undefined;
+    }
   },
 
-  updateCampaign: (id: number, campaign: Partial<Campaign>) => {
-    const sets = Object.keys(campaign).map(k => `${k} = @${k}`).join(', ');
-    const stmt = db.prepare(`UPDATE campaigns SET ${sets} WHERE id = @id`);
-    stmt.run({ ...campaign, id });
+  updateCampaign: async (id: number, campaign: Partial<Campaign>) => {
+    const keys = Object.keys(campaign);
+    if (keys.length === 0) return;
+    if (useTurso) {
+      const sets = keys.map(k => `${k} = ?`).join(', ');
+      const args = [...Object.values(campaign), id];
+      await client.execute({ sql: `UPDATE campaigns SET ${sets} WHERE id = ?`, args });
+    } else {
+      const sets = keys.map(k => `${k} = @${k}`).join(', ');
+      const stmt = db.prepare(`UPDATE campaigns SET ${sets} WHERE id = @id`);
+      stmt.run({ ...campaign, id });
+    }
   },
 
   // Mensagens
-  createMessage: (message: Message): number => {
-    const stmt = db.prepare(`
-      INSERT INTO messages (campaignId, leadId, waMessageId, status, error, sentAt)
-      VALUES (@campaignId, @leadId, @waMessageId, @status, @error, @sentAt)
-    `);
-    const result = stmt.run(message);
-    return result.lastInsertRowid as number;
+  createMessage: async (message: Message): Promise<number> => {
+    if (useTurso) {
+      const res = await client.execute({
+        sql: `INSERT INTO messages (campaignId, leadId, waMessageId, status, error, sentAt) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [message.campaignId, message.leadId, message.waMessageId || null, message.status || 'pendente', message.error || null, message.sentAt || null]
+      });
+      return Number(res.lastInsertRowid || 0);
+    } else {
+      const stmt = db.prepare(`
+        INSERT INTO messages (campaignId, leadId, waMessageId, status, error, sentAt)
+        VALUES (@campaignId, @leadId, @waMessageId, @status, @error, @sentAt)
+      `);
+      const result = stmt.run(message);
+      return result.lastInsertRowid as number;
+    }
   },
 
-  getMessagesByCampaign: (campaignId: number): Message[] => {
-    return db.prepare('SELECT * FROM messages WHERE campaignId = ?').all(campaignId) as Message[];
+  getMessagesByCampaign: async (campaignId: number): Promise<Message[]> => {
+    if (useTurso) {
+      const res = await client.execute({ sql: 'SELECT * FROM messages WHERE campaignId = ?', args: [campaignId] });
+      return res.rows as unknown as Message[];
+    } else {
+      return db.prepare('SELECT * FROM messages WHERE campaignId = ?').all(campaignId) as Message[];
+    }
   },
 
-  updateMessageStatus: (id: number, status: string, error?: string, waMessageId?: string) => {
-    const stmt = db.prepare('UPDATE messages SET status = ?, error = ?, waMessageId = ?, sentAt = CURRENT_TIMESTAMP WHERE id = ?');
-    stmt.run(status, error || null, waMessageId || null, id);
+  updateMessageStatus: async (id: number, status: string, error?: string, waMessageId?: string) => {
+    if (useTurso) {
+      await client.execute({
+        sql: 'UPDATE messages SET status = ?, error = ?, waMessageId = ?, sentAt = CURRENT_TIMESTAMP WHERE id = ?',
+        args: [status, error || null, waMessageId || null, id]
+      });
+    } else {
+      const stmt = db.prepare('UPDATE messages SET status = ?, error = ?, waMessageId = ?, sentAt = CURRENT_TIMESTAMP WHERE id = ?');
+      stmt.run(status, error || null, waMessageId || null, id);
+    }
   },
 
   // Chat / CRM
-  saveChatMessage: (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string }) => {
-    const stmt = db.prepare(`
-      INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      msg.phone.replace(/\D/g, ''),
-      msg.contactName || null,
-      msg.sender,
-      msg.body,
-      msg.waMessageId || null,
-      msg.deliveryStatus || 'sent'
-    );
+  saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string }) => {
+    const cleanPhone = msg.phone.replace(/\D/g, '');
+    if (useTurso) {
+      await client.execute({
+        sql: `INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent']
+      });
+    } else {
+      const stmt = db.prepare(`
+        INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      stmt.run(cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent');
+    }
   },
 
-  updateChatMessageDelivery: (waMessageId: string, deliveryStatus: string) => {
-    db.prepare('UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?').run(deliveryStatus, waMessageId);
+  updateChatMessageDelivery: async (waMessageId: string, deliveryStatus: string) => {
+    if (useTurso) {
+      await client.execute({
+        sql: 'UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?',
+        args: [deliveryStatus, waMessageId]
+      });
+    } else {
+      db.prepare('UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?').run(deliveryStatus, waMessageId);
+    }
   },
 
-  getConversations: () => {
-    return db.prepare(`
+  getConversations: async () => {
+    const sql = `
       SELECT 
         cm.phone,
         cm.contactName,
@@ -223,27 +343,36 @@ export const dbService = {
       LEFT JOIN chat_messages cm2 ON cm2.phone = cm.phone AND cm2.status = 'unread' AND cm2.sender = 'user'
       GROUP BY cm.phone
       ORDER BY cm.timestamp DESC
-    `).all();
+    `;
+    if (useTurso) {
+      const res = await client.execute(sql);
+      return res.rows;
+    } else {
+      return db.prepare(sql).all();
+    }
   },
 
-  getChatMessagesByPhone: (phone: string) => {
+  getChatMessagesByPhone: async (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    db.prepare("UPDATE chat_messages SET status = 'read' WHERE phone = ? AND sender = 'user'").run(cleanPhone);
-    return db.prepare("SELECT * FROM chat_messages WHERE phone = ? ORDER BY timestamp ASC").all(cleanPhone);
-  },
-
-  getLatestChatMessageId: (): number => {
-    const row = db.prepare('SELECT MAX(id) as maxId FROM chat_messages').get() as any;
-    return row?.maxId || 0;
-  },
-
-  getNewChatMessages: (sinceId: number) => {
-    return db.prepare('SELECT * FROM chat_messages WHERE id > ? ORDER BY timestamp ASC').all(sinceId);
+    if (useTurso) {
+      await client.execute({ sql: "UPDATE chat_messages SET status = 'read' WHERE phone = ? AND sender = 'user'", args: [cleanPhone] });
+      const res = await client.execute({ sql: "SELECT * FROM chat_messages WHERE phone = ? ORDER BY timestamp ASC", args: [cleanPhone] });
+      return res.rows;
+    } else {
+      db.prepare("UPDATE chat_messages SET status = 'read' WHERE phone = ? AND sender = 'user'").run(cleanPhone);
+      return db.prepare("SELECT * FROM chat_messages WHERE phone = ? ORDER BY timestamp ASC").all(cleanPhone);
+    }
   },
 
   // Configurações
-  getSettings: (): Settings => {
-    const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string, value: string }[];
+  getSettings: async (): Promise<Settings> => {
+    let rows: { key: string; value: string }[] = [];
+    if (useTurso) {
+      const res = await client.execute('SELECT key, value FROM settings');
+      rows = res.rows as unknown as { key: string; value: string }[];
+    } else {
+      rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
+    }
     const settings = { ...DEFAULT_SETTINGS } as Record<string, any>;
     rows.forEach(row => {
       settings[row.key] = row.value;
@@ -251,19 +380,22 @@ export const dbService = {
     return settings as Settings;
   },
 
-  setSetting: (key: string, value: string) => {
-    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+  setSetting: async (key: string, value: string) => {
+    if (useTurso) {
+      await client.execute({
+        sql: 'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+        args: [key, value]
+      });
+    } else {
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+    }
   },
 
-  updateSettings: (settings: Partial<Settings>) => {
-    const stmt = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
-    const transaction = db.transaction((settings: Partial<Settings>) => {
-      for (const [key, value] of Object.entries(settings)) {
-        if (value !== undefined) {
-          stmt.run(key, String(value));
-        }
+  updateSettings: async (settings: Partial<Settings>) => {
+    for (const [key, value] of Object.entries(settings)) {
+      if (value !== undefined) {
+        await dbService.setSetting(key, String(value));
       }
-    });
-    transaction(settings);
+    }
   }
 };
