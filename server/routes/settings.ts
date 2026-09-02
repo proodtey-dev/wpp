@@ -95,27 +95,29 @@ router.get('/debug-meta', async (req, res) => {
     const tokenStatus = token ? `${token.substring(0, 15)}...` : 'NÃO CONFIGURADO';
 
     if (!token) {
-      return res.json({
-        tokenStatus,
-        wabaId,
-        phoneNumberId,
-        templates: [],
-        error: 'Token não encontrado nas settings nem nas env vars'
-      });
+      return res.json({ tokenStatus, wabaId, phoneNumberId, templates: [], error: 'Token não encontrado' });
     }
 
-    const resp = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?fields=name,status,language&limit=20&access_token=${token}`);
+    // 1. Busca WABAs que esse token tem acesso (todas as contas business)
+    const wabaDiscoveryResp = await fetch(`https://graph.facebook.com/v22.0/me/businesses?fields=id,name,owned_whatsapp_business_accounts{id,name}&access_token=${token}`);
+    const wabaDiscovery = await wabaDiscoveryResp.json() as any;
+
+    // 2. Busca templates da WABA configurada
+    const resp = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?fields=name,status,language&limit=30&access_token=${token}`);
     const data = await resp.json() as any;
 
     res.json({
       tokenStatus,
       wabaId,
       phoneNumberId,
-      metaResponse: data
+      metaResponse: data,
+      wabaDiscovery
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
+
+
 
 export default router;
