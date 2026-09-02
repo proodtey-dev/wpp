@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck, Settings as SettingsIcon } from 'lucide-react';
+import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck, Settings as SettingsIcon, RefreshCw } from 'lucide-react';
 import { DEFAULT_MESSAGE } from '../lib/utils';
 import { getSettings, updateSettings, testWhatsAppApi } from '../lib/api';
 
@@ -9,10 +9,13 @@ const Settings = () => {
   const [whatsappToken, setWhatsappToken] = useState('');
   const [phoneId, setPhoneId] = useState('');
   const [wabaId, setWabaId] = useState('');
+  const [templateName, setTemplateName] = useState('proposta_site_v1');
   const [showWa, setShowWa] = useState(false);
   const [waStatus, setWaStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [template, setTemplate] = useState(DEFAULT_MESSAGE);
   const [toast, setToast] = useState('');
+  const [metaTemplates, setMetaTemplates] = useState<{name: string; status: string; language: string}[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     getSettings().then(data => {
@@ -22,9 +25,26 @@ const Settings = () => {
         if (data.whatsappPhoneNumberId) setPhoneId(data.whatsappPhoneNumberId);
         if (data.whatsappWabaId) setWabaId(data.whatsappWabaId);
         if (data.defaultMessage) setTemplate(data.defaultMessage);
+        if (data.defaultTemplateName) setTemplateName(data.defaultTemplateName);
       }
     }).catch(() => {});
   }, []);
+
+  const fetchMetaTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch('/api/settings/debug-meta').then(r => r.json());
+      const templates = res.metaResponse?.data || [];
+      setMetaTemplates(templates);
+      if (templates.length === 0) {
+        showToast('Nenhum template encontrado — verifique seu Token e WABA ID.');
+      }
+    } catch {
+      showToast('Erro ao buscar templates da Meta.');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -47,6 +67,7 @@ const Settings = () => {
       whatsappToken,
       whatsappPhoneNumberId: phoneId,
       whatsappWabaId: wabaId,
+      defaultTemplateName: templateName,
       defaultMessage: template
     }).catch(() => {});
     showToast('Configurações salvas com sucesso!');
@@ -153,7 +174,7 @@ const Settings = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">WABA ID (WhatsApp Business Account ID) — Opcional</label>
+              <label className="form-label">WABA ID (WhatsApp Business Account ID)</label>
               <input
                 className="input"
                 type="text"
@@ -162,6 +183,59 @@ const Settings = () => {
                 placeholder="Ex: 1394332478791215"
                 style={{ fontFamily: 'monospace', fontSize: 12 }}
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Nome do Template Aprovado na Meta</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="input"
+                  type="text"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  placeholder="Ex: proposta_site_v1"
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                />
+                <button
+                  className="btn btn-secondary"
+                  onClick={fetchMetaTemplates}
+                  disabled={loadingTemplates}
+                  style={{ flexShrink: 0, gap: 6 }}
+                  title="Buscar templates reais da sua conta Meta"
+                >
+                  <RefreshCw size={14} style={{ animation: loadingTemplates ? 'spin 1s linear infinite' : 'none' }} />
+                  {loadingTemplates ? 'Buscando…' : 'Ver Templates'}
+                </button>
+              </div>
+              {metaTemplates.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2 }}>Templates aprovados na sua conta — clique para selecionar:</div>
+                  {metaTemplates.map(t => (
+                    <div
+                      key={t.name}
+                      onClick={() => setTemplateName(t.name)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
+                        background: templateName === t.name ? 'var(--green-dim)' : 'var(--bg-3)',
+                        border: `1px solid ${templateName === t.name ? 'var(--green)' : 'var(--border)'}`,
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text)' }}>{t.name}</span>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{t.language}</span>
+                        <span style={{
+                          fontSize: 10, padding: '2px 6px', borderRadius: 4,
+                          background: t.status === 'APPROVED' ? 'var(--green-dim)' : 'rgba(245,158,11,0.12)',
+                          color: t.status === 'APPROVED' ? 'var(--green)' : '#f59e0b'
+                        }}>{t.status}</span>
+                        {templateName === t.name && <CheckCircle2 size={13} style={{ color: 'var(--green)' }} />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </SectionCard>
