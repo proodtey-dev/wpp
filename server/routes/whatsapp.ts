@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { whatsappService } from '../services/whatsapp';
 import { dbService } from '../services/database';
+import { broadcastToSSE } from './chat';
 
 const router = Router();
 
@@ -80,6 +81,17 @@ router.post('/send', async (req, res) => {
             body: text,
             waMessageId: result.messageId,
             deliveryStatus: 'sent'
+          });
+
+          // Notifica o Chat em tempo real via SSE
+          broadcastToSSE('new_message', {
+            phone: lead.phone,
+            contactName: lead.name,
+            sender: 'me',
+            body: text,
+            timestamp: new Date().toISOString(),
+            deliveryStatus: 'sent',
+            waMessageId: result.messageId
           });
         } else {
           failedCount++;
