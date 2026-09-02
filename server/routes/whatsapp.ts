@@ -14,8 +14,11 @@ router.post('/send', async (req, res) => {
     }
 
     const settings = await dbService.getSettings();
-    if (!settings.whatsappToken || !settings.whatsappPhoneNumberId) {
-      return res.status(400).json({ error: 'Credenciais do WhatsApp não configuradas' });
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!token || !phoneNumberId) {
+      return res.status(400).json({ error: 'Credenciais do WhatsApp não configuradas nas Configurações ou Environment' });
     }
 
     const campaignId = await dbService.createCampaign({
@@ -59,13 +62,13 @@ router.post('/send', async (req, res) => {
           const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
           if (templateName) {
             result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
-              token: settings.whatsappToken,
-              phoneNumberId: settings.whatsappPhoneNumberId
+              token: token!,
+              phoneNumberId: phoneNumberId!
             });
           } else {
             result = await whatsappService.sendTextMessage(lead.phone, text, {
-              token: settings.whatsappToken,
-              phoneNumberId: settings.whatsappPhoneNumberId
+              token: token!,
+              phoneNumberId: phoneNumberId!
             });
           }
 
