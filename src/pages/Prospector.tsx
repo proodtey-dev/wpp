@@ -121,14 +121,16 @@ const Prospector = () => {
 
   const handleCampaignSend = async (name: string, msg: string) => {
     try {
-      // 1. Salva os leads primeiro
       const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
-      const saveRes = await saveLeads(selectedLeads).catch(() => null);
-      const savedLeadIds = saveRes?.ids || selectedIds;
 
-      // 2. Dispara a campanha via backend
+      // 1. Salva os leads no banco
+      const saveRes = await saveLeads(selectedLeads).catch(() => null);
+      const savedLeadIds = saveRes?.ids && saveRes.ids.length > 0 ? saveRes.ids : selectedIds;
+
+      // 2. Dispara a campanha via backend enviando IDs e os objetos completos dos leads como fallback
       await sendWhatsApp({
         leadIds: savedLeadIds,
+        leads: selectedLeads,
         message: msg,
         campaignName: name
       });

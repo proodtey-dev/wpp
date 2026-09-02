@@ -7,12 +7,8 @@ const router = Router();
 
 router.post('/send', async (req, res) => {
   try {
-    const { leadIds, message, campaignName } = req.body;
+    const { leadIds, leads: rawLeads, message, campaignName } = req.body;
     
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ error: 'IDs dos leads são obrigatórios' });
-    }
-
     const settings = await dbService.getSettings();
     const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
     const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -25,7 +21,7 @@ router.post('/send', async (req, res) => {
       name: campaignName || 'Campanha sem nome',
       templateName: '',
       message,
-      totalLeads: leadIds.length,
+      totalLeads: Array.isArray(leadIds) ? leadIds.length : (Array.isArray(rawLeads) ? rawLeads.length : 1),
       sent: 0,
       delivered: 0,
       read: 0,
@@ -40,33 +36,48 @@ router.post('/send', async (req, res) => {
       let sentCount = 0;
       let failedCount = 0;
 
-      for (const id of leadIds) {
-        try {
-          const lead = await dbService.getLeadById(id);
-          if (!lead || !lead.phone) {
-            failedCount++;
-            continue;
-          }
+      // Lista consolidada de alvos
+      const targets: Array<{ id?: number; name: string; phone: string }> = [];
 
+      if (Array.isArray(leadIds)) {
+        for (const id of leadIds) {
+          const lead = await dbService.getLeadById(id);
+          if (lead && lead.phone) {
+            targets.push({ id: lead.id, name: lead.name, phone: lead.phone });
+          }
+        }
+      }
+
+      if (targets.length === 0 && Array.isArray(rawLeads)) {
+        for (const r of rawLeads) {
+          if (r.phone) {
+            const savedId = await dbService.createLead(r);
+            targets.push({ id: savedId, name: r.name, phone: r.phone });
+          }
+        }
+      }
+
+      for (const target of targets) {
+        try {
           const msgId = await dbService.createMessage({
             campaignId,
-            leadId: id,
+            leadId: target.id || 0,
             waMessageId: null,
             status: 'pendente',
             error: null
           });
 
-          const text = message.replace(/{nome}/g, lead.name);
+          const text = message.replace(/{nome}/g, target.name);
 
           let result;
           const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
           if (templateName) {
-            result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
+            result = await whatsappService.sendTemplateMessage(target.phone, templateName, [target.name], {
               token: token!,
               phoneNumberId: phoneNumberId!
             });
           } else {
-            result = await whatsappService.sendTextMessage(lead.phone, text, {
+            result = await whatsappService.sendTextMessage(target.phone, text, {
               token: token!,
               phoneNumberId: phoneNumberId!
             });
@@ -75,12 +86,14 @@ router.post('/send', async (req, res) => {
           if (result.success) {
             sentCount++;
             await dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
-            await dbService.updateLead(id, { status: 'contatado' });
+            if (target.id) {
+              await dbService.updateLead(target.id, { status: 'contatado' });
+            }
 
             // Registra a mensagem enviada no Chat / CRM
             await dbService.saveChatMessage({
-              phone: lead.phone,
-              contactName: lead.name,
+              phone: target.phone,
+              contactName: target.name,
               sender: 'me',
               body: text,
               waMessageId: result.messageId,
@@ -89,8 +102,8 @@ router.post('/send', async (req, res) => {
 
             // Notifica o Chat em tempo real via SSE
             broadcastToSSE('new_message', {
-              phone: lead.phone,
-              contactName: lead.name,
+              phone: target.phone,
+              contactName: target.name,
               sender: 'me',
               body: text,
               timestamp: new Date().toISOString(),
