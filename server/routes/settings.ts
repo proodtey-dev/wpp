@@ -84,4 +84,38 @@ router.post('/test-whatsapp', async (req, res) => {
   }
 });
 
+// Debug: lista templates reais da conta Meta usando env vars
+router.get('/debug-meta', async (req, res) => {
+  try {
+    const settings = await dbService.getSettings();
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN || '';
+    const wabaId = settings.whatsappWabaId || process.env.WHATSAPP_WABA_ID || '1394332478791215';
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
+
+    const tokenStatus = token ? `${token.substring(0, 15)}...` : 'NÃO CONFIGURADO';
+
+    if (!token) {
+      return res.json({
+        tokenStatus,
+        wabaId,
+        phoneNumberId,
+        templates: [],
+        error: 'Token não encontrado nas settings nem nas env vars'
+      });
+    }
+
+    const resp = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?fields=name,status,language&limit=20&access_token=${token}`);
+    const data = await resp.json() as any;
+
+    res.json({
+      tokenStatus,
+      wabaId,
+      phoneNumberId,
+      metaResponse: data
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
