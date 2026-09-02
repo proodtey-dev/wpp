@@ -21,7 +21,12 @@ router.post('/', async (req, res) => {
     const savedIds: number[] = [];
     for (const lead of leads) {
       const id = await dbService.createLead(lead);
-      if (id) savedIds.push(id);
+      if (id) {
+        savedIds.push(id);
+      } else {
+        const existing = await dbService.getByPlaceId(lead.placeId);
+        if (existing?.id) savedIds.push(existing.id);
+      }
     }
     
     res.status(201).json({ message: 'Leads salvos com sucesso', ids: savedIds });

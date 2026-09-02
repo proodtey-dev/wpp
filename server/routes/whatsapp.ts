@@ -38,74 +38,79 @@ router.post('/send', async (req, res) => {
       let failedCount = 0;
 
       for (const id of leadIds) {
-        const lead = await dbService.getLeadById(id);
-        if (!lead || !lead.phone) {
+        try {
+          const lead = await dbService.getLeadById(id);
+          if (!lead || !lead.phone) {
+            failedCount++;
+            continue;
+          }
+
+          const msgId = await dbService.createMessage({
+            campaignId,
+            leadId: id,
+            waMessageId: null,
+            status: 'pendente',
+            error: null
+          });
+
+          const text = message.replace(/{nome}/g, lead.name);
+
+          let result;
+          const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
+          if (templateName) {
+            result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
+              token: settings.whatsappToken,
+              phoneNumberId: settings.whatsappPhoneNumberId
+            });
+          } else {
+            result = await whatsappService.sendTextMessage(lead.phone, text, {
+              token: settings.whatsappToken,
+              phoneNumberId: settings.whatsappPhoneNumberId
+            });
+          }
+
+          if (result.success) {
+            sentCount++;
+            await dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
+            await dbService.updateLead(id, { status: 'contatado' });
+
+            // Registra a mensagem enviada no Chat / CRM
+            await dbService.saveChatMessage({
+              phone: lead.phone,
+              contactName: lead.name,
+              sender: 'me',
+              body: text,
+              waMessageId: result.messageId,
+              deliveryStatus: 'sent'
+            });
+
+            // Notifica o Chat em tempo real via SSE
+            broadcastToSSE('new_message', {
+              phone: lead.phone,
+              contactName: lead.name,
+              sender: 'me',
+              body: text,
+              timestamp: new Date().toISOString(),
+              deliveryStatus: 'sent',
+              waMessageId: result.messageId
+            });
+          } else {
+            failedCount++;
+            await dbService.updateMessageStatus(msgId, 'falhou', result.error);
+          }
+
+          await dbService.updateCampaign(campaignId, { sent: sentCount, failed: failedCount });
+        } catch (err: any) {
+          console.error('Erro no envio em lote:', err);
           failedCount++;
-          continue;
         }
-
-        const msgId = await dbService.createMessage({
-          campaignId,
-          leadId: id,
-          waMessageId: null,
-          status: 'pendente',
-          error: null
-        });
-
-        const text = message.replace(/{nome}/g, lead.name);
-
-        let result;
-        const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
-        if (templateName) {
-          result = await whatsappService.sendTemplateMessage(lead.phone, templateName, [lead.name], {
-            token: settings.whatsappToken,
-            phoneNumberId: settings.whatsappPhoneNumberId
-          });
-        } else {
-          result = await whatsappService.sendTextMessage(lead.phone, text, {
-            token: settings.whatsappToken,
-            phoneNumberId: settings.whatsappPhoneNumberId
-          });
-        }
-
-        if (result.success) {
-          sentCount++;
-          await dbService.updateMessageStatus(msgId, 'enviado', undefined, result.messageId);
-          await dbService.updateLead(id, { status: 'contatado' });
-
-          // Registra a mensagem enviada no Chat / CRM
-          await dbService.saveChatMessage({
-            phone: lead.phone,
-            contactName: lead.name,
-            sender: 'me',
-            body: text,
-            waMessageId: result.messageId,
-            deliveryStatus: 'sent'
-          });
-
-          // Notifica o Chat em tempo real via SSE
-          broadcastToSSE('new_message', {
-            phone: lead.phone,
-            contactName: lead.name,
-            sender: 'me',
-            body: text,
-            timestamp: new Date().toISOString(),
-            deliveryStatus: 'sent',
-            waMessageId: result.messageId
-          });
-        } else {
-          failedCount++;
-          await dbService.updateMessageStatus(msgId, 'falhou', result.error);
-        }
-
-        await dbService.updateCampaign(campaignId, { sent: sentCount, failed: failedCount });
 
         // Delay de 1 segundo para evitar rate limit
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       await dbService.updateCampaign(campaignId, { status: 'concluida' });
-    })();
+    })().catch(err => console.error('Erro geral na campanha:', err));
 
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao iniciar campanha', details: error.message });
