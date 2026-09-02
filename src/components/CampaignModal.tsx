@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send } from 'lucide-react';
+import { X, Send, Loader2 } from 'lucide-react';
 import WhatsAppPreview from './WhatsAppPreview';
 import { DEFAULT_MESSAGE } from '../lib/utils';
 
@@ -18,12 +18,13 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
   if (!isOpen) return null;
 
   const handleSend = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
       await onSend(name, message);
       onClose();
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao enviar modal:', e);
     } finally {
       setIsLoading(false);
     }
@@ -32,74 +33,66 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
   const previewName = selectedLeads[0]?.name || 'Nome do Comércio';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" id="campaign-modal">
-      <div className="bg-[#12121a] border border-[rgba(255,255,255,0.1)] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+    <div className="modal-overlay" id="campaign-modal">
+      <div className="modal" style={{ maxWidth: 700 }}>
         
-        <div className="flex items-center justify-between p-6 border-b border-[rgba(255,255,255,0.08)]">
-          <h2 className="text-xl font-bold text-white">Nova Campanha WhatsApp</h2>
-          <button onClick={onClose} className="text-[rgba(255,255,255,0.5)] hover:text-white transition-colors">
-            <X size={24} />
+        <div className="modal-header">
+          <span className="modal-title">Disparar Campanha WhatsApp</span>
+          <button onClick={onClose} className="btn btn-ghost btn-sm">
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Form Side */}
-          <div className="flex-1 p-6 overflow-y-auto border-r border-[rgba(255,255,255,0.08)] space-y-6">
-            <div className="bg-[rgba(37,211,102,0.1)] text-[#25D366] px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2">
-              <Send size={16} />
-              Enviando para {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selecionado{selectedLeads.length > 1 ? 's' : ''}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 20 }}>
+          {/* Form */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Send size={14} /> Enviando para {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selecionado{selectedLeads.length > 1 ? 's' : ''}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">Nome da Campanha</label>
-              <input 
-                type="text" 
+            <div className="form-group">
+              <label className="form-label">Nome da Campanha</label>
+              <input
+                type="text"
+                className="input"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg px-4 py-3 text-white outline-none focus:border-[#25D366] transition-colors"
-                placeholder="Ex: Contatos Restaurantes Centro"
+                placeholder="Ex: Proposta Dentistas"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[rgba(255,255,255,0.7)] mb-2">Mensagem</label>
-              <textarea 
+            <div className="form-group">
+              <label className="form-label">Mensagem da Proposta</label>
+              <textarea
+                className="input textarea"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                className="w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg px-4 py-3 text-white outline-none focus:border-[#25D366] transition-colors h-48 resize-none"
-                placeholder="Digite sua mensagem..."
+                style={{ minHeight: 140, fontSize: 12 }}
+                placeholder="Digite a mensagem..."
               />
-              <p className="mt-2 text-xs text-[rgba(255,255,255,0.5)]">
-                Dica: Use <strong className="text-white">{`{nome}`}</strong> para inserir o nome do comércio dinamicamente.
-              </p>
             </div>
           </div>
 
-          {/* Preview Side */}
-          <div className="flex-1 p-6 bg-[#0a0a0f] flex flex-col items-center justify-center relative">
-            <div className="w-full max-w-sm">
-              <h3 className="text-sm font-medium text-[rgba(255,255,255,0.5)] mb-4 text-center">Pré-visualização</h3>
-              <WhatsAppPreview message={message} businessName={previewName} />
-            </div>
+          {/* Preview */}
+          <div style={{ background: 'var(--bg-4)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, fontWeight: 600 }}>Pré-visualização</span>
+            <WhatsAppPreview message={message} businessName={previewName} />
           </div>
         </div>
 
-        <div className="p-6 border-t border-[rgba(255,255,255,0.08)] bg-[#12121a] flex justify-end gap-3">
-          <button 
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-white hover:bg-[rgba(255,255,255,0.05)] transition-colors"
-          >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+          <button onClick={onClose} className="btn btn-secondary">
             Cancelar
           </button>
-          <button 
+          <button
             onClick={handleSend}
             disabled={isLoading || !message.trim() || selectedLeads.length === 0}
-            className="px-6 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#128C7E] text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,211,102,0.2)]"
+            className="btn btn-primary"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Enviando…</>
             ) : (
-              <><Send size={18} /> Enviar Campanha</>
+              <><Send size={14} /> Confirmar Disparo ({selectedLeads.length})</>
             )}
           </button>
         </div>
