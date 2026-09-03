@@ -61,13 +61,18 @@ const Prospector = () => {
 
       if (resp?.results?.length > 0) {
         const searchResults = resp.results.map((r: any, idx: number) => ({
-          id: idx + 1 + (pageNum - 1) * 20,
+          id: r.placeId || `place-${idx + 1 + (pageNum - 1) * 20}`,
           name: r.name,
           type: r.category || params.type || 'Empresa',
+          category: r.category || params.type || 'Empresa',
           rating: r.rating || 4.8,
           reviews: r.reviewCount || 35,
+          reviewCount: r.reviewCount || 35,
           address: r.address || params.query,
-          phone: r.phone || 'Telefone sob consulta',
+          phone: r.phone || null,
+          website: r.website || null,
+          placeId: r.placeId || `place-${idx + 1 + (pageNum - 1) * 20}`,
+          photoUrl: r.photoUrl || null,
           hasWebsite: Boolean(r.website?.trim().length > 0),
           status: r.status || 'novo',
           emoji: '💼'
@@ -104,7 +109,7 @@ const Prospector = () => {
     return true;
   });
 
-  const toggleSelect = (id: number, checked: boolean) => {
+  const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds(prev => checked ? [...prev, id] : prev.filter(item => item !== id));
   };
 
@@ -123,14 +128,24 @@ const Prospector = () => {
     try {
       const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
 
-      // 1. Salva os leads no banco
-      const saveRes = await saveLeads(selectedLeads).catch(() => null);
-      const savedLeadIds = saveRes?.ids && saveRes.ids.length > 0 ? saveRes.ids : selectedIds;
+      // Monta payload completo com todos os dados necessários para o backend
+      const leadsPayload = selectedLeads.map(r => ({
+        name: r.name,
+        address: r.address || '',
+        phone: r.phone || '',
+        rating: r.rating,
+        reviewCount: r.reviewCount || r.reviews || 0,
+        website: r.website || null,
+        placeId: r.placeId || r.id,
+        photoUrl: r.photoUrl || null,
+        category: r.category || r.type || 'Empresa',
+        status: 'novo'
+      }));
 
-      // 2. Dispara a campanha via backend enviando IDs e os objetos completos dos leads como fallback
+      // Dispara a campanha via backend com os dados completos
       await sendWhatsApp({
-        leadIds: savedLeadIds,
-        leads: selectedLeads,
+        leadIds: [],
+        leads: leadsPayload,
         message: msg,
         campaignName: name
       });

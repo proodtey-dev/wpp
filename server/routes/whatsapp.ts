@@ -36,25 +36,59 @@ router.post('/send', async (req, res) => {
       let sentCount = 0;
       let failedCount = 0;
 
+      console.log(`\n🚀 Campanha ${campaignId} iniciada. leadIds=${JSON.stringify(leadIds)}, rawLeads=${Array.isArray(rawLeads) ? rawLeads.length : 0}`);
+
       // Lista consolidada de alvos
       const targets: Array<{ id?: number; name: string; phone: string }> = [];
 
-      if (Array.isArray(leadIds)) {
+      // Prioridade 1: usar rawLeads diretamente (já vêm com dados completos do frontend)
+      if (Array.isArray(rawLeads) && rawLeads.length > 0) {
+        for (const r of rawLeads) {
+          const phone = (r.phone || '').replace(/\D/g, '');
+          if (!phone || phone.length < 8) {
+            console.log(`⚠️ Lead "${r.name}" sem telefone válido, pulando.`);
+            failedCount++;
+            continue;
+          }
+          try {
+            const savedId = await dbService.createLead({
+              name: r.name || 'Empresa',
+              address: r.address || '',
+              phone: phone,
+              rating: r.rating || null,
+              reviewCount: r.reviewCount || null,
+              website: r.website || null,
+              placeId: r.placeId || `gen-${Date.now()}-${Math.random()}`,
+              photoUrl: r.photoUrl || null,
+              category: r.category || 'Empresa',
+              status: 'novo'
+            });
+            // Se INSERT OR IGNORE retornou 0, busca o existente pelo placeId
+            const finalId = savedId || (r.placeId ? (await dbService.getByPlaceId(r.placeId))?.id : undefined);
+            targets.push({ id: finalId, name: r.name, phone });
+          } catch (e: any) {
+            console.error(`❌ Erro ao salvar lead "${r.name}":`, e.message);
+            targets.push({ name: r.name, phone });
+          }
+        }
+      } else if (Array.isArray(leadIds) && leadIds.length > 0) {
+        // Prioridade 2: buscar por IDs numéricos no banco
         for (const id of leadIds) {
-          const lead = await dbService.getLeadById(id);
+          const lead = await dbService.getLeadById(Number(id));
           if (lead && lead.phone) {
             targets.push({ id: lead.id, name: lead.name, phone: lead.phone });
+          } else {
+            console.log(`⚠️ Lead ID ${id} não encontrado ou sem telefone.`);
           }
         }
       }
 
-      if (targets.length === 0 && Array.isArray(rawLeads)) {
-        for (const r of rawLeads) {
-          if (r.phone) {
-            const savedId = await dbService.createLead(r);
-            targets.push({ id: savedId, name: r.name, phone: r.phone });
-          }
-        }
+      console.log(`📋 Alvos para envio: ${targets.length}`);
+
+      if (targets.length === 0) {
+        console.error('❌ Nenhum alvo válido para envio. Encerrando campanha.');
+        await dbService.updateCampaign(campaignId, { status: 'concluida', failed: failedCount });
+        return;
       }
 
       for (const target of targets) {
