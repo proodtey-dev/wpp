@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Search, Phone, Zap, CheckCheck, Check, X,
-  Clock, RefreshCw, AlertCircle
+  Clock, RefreshCw, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { getConversations, getChatMessages, sendChatMessage } from '../lib/api';
 
@@ -69,6 +69,7 @@ const Chat = () => {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const selectedPhoneRef = useRef<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -231,10 +232,15 @@ const Chat = () => {
     c.phone?.includes(searchFilter)
   );
 
+  const handleSelectConv = (phone: string) => {
+    setSelectedPhone(phone);
+    setMobileView('chat');
+  };
+
   return (
     <div className="chat-layout">
       {/* Conversations Sidebar */}
-      <div className="chat-sidebar">
+      <div className={`chat-sidebar ${mobileView === 'chat' ? 'hidden-mobile' : ''}`}>
         <div className="chat-sidebar-header">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -271,7 +277,7 @@ const Chat = () => {
               <div
                 key={conv.phone}
                 className={`chat-item ${selectedPhone === conv.phone ? 'active' : ''}`}
-                onClick={() => setSelectedPhone(conv.phone)}
+                onClick={() => handleSelectConv(conv.phone)}
               >
                 <div className="chat-avatar">{(conv.contactName || 'C')[0].toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -291,10 +297,21 @@ const Chat = () => {
       </div>
 
       {/* Main chat area */}
-      {selectedPhone ? (
-        <div className="chat-main">
+      <div className={`chat-main ${mobileView === 'list' ? 'hidden-mobile' : ''}`}>
+        {selectedPhone ? (
+          <>
           {/* Header */}
           <div className="chat-main-header">
+            {/* Back button — mobile only */}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setMobileView('list')}
+              style={{ marginRight: 4, display: 'none' }}
+              id="chat-back-btn"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <style>{`@media(max-width:768px){#chat-back-btn{display:flex!important}}`}</style>
             <div className="chat-avatar" style={{ width: 34, height: 34, fontSize: 13 }}>
               {(selectedConv?.contactName || 'C')[0].toUpperCase()}
             </div>
@@ -402,20 +419,21 @@ const Chat = () => {
               {sending ? 'Enviando…' : 'Enviar'}
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="chat-main" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 12, color: 'var(--text-3)' }}>
-          <MessageSquare size={44} style={{ opacity: 0.15 }} />
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center' }}>Caixa de Entrada</p>
-            <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar e responder</p>
+          </>
+        ) : (
+          <div style={{ flex: 1, alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 12, color: 'var(--text-3)' }}>
+            <MessageSquare size={44} style={{ opacity: 0.15 }} />
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center' }}>Caixa de Entrada</p>
+              <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar e responder</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 8 }}>
+              <span className="online-dot" style={{ background: sseConnected ? 'var(--green)' : '#f59e0b' }} />
+              {sseConnected ? 'Conectado — novas mensagens chegam automaticamente' : 'Conectando ao stream de mensagens...'}
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 8 }}>
-            <span className="online-dot" style={{ background: sseConnected ? 'var(--green)' : '#f59e0b' }} />
-            {sseConnected ? 'Conectado — novas mensagens chegam automaticamente' : 'Conectando ao stream de mensagens...'}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

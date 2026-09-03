@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import Dashboard from './pages/Dashboard';
 import Prospector from './pages/Prospector';
 import Chat from './pages/Chat';
@@ -24,6 +25,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
+        <BottomNav />
       </div>
     </BrowserRouter>
   );
