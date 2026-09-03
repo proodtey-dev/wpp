@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, MapPin, Phone, Globe, MessageSquare } from 'lucide-react';
+import { Star, MapPin, Phone, MessageSquare, Map } from 'lucide-react';
 import { formatPhone, DEFAULT_MESSAGE } from '../lib/utils';
 
 interface LeadCardProps {
@@ -14,6 +14,11 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
   const cleanPhone = (lead.phone || '').replace(/\D/g, '');
   const filledMessage = DEFAULT_MESSAGE.replace(/{nome}/g, lead.name);
   const waUrl = cleanPhone ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(filledMessage)}` : null;
+
+  // URL do Google Maps: usa placeId se disponível, senão busca por nome+endereço
+  const mapsUrl = lead.placeId && !lead.placeId.startsWith('place-') && !lead.placeId.startsWith('gen-')
+    ? `https://www.google.com/maps/place/?q=place_id:${lead.placeId}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(`${lead.name} ${lead.address || ''}`)}`;
 
   return (
     <div
@@ -58,6 +63,18 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
       </div>
 
       <div className="lead-card-footer">
+        {/* Botão Ver no Maps */}
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary btn-sm"
+          title="Ver no Google Maps"
+          style={{ flexShrink: 0, paddingLeft: 10, paddingRight: 10 }}
+        >
+          <Map size={12} />
+        </a>
+
         {waUrl ? (
           <a
             href={waUrl}
@@ -83,3 +100,4 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
 };
 
 export default LeadCard;
+
