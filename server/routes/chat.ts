@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dbService } from '../services/database';
 import { whatsappService } from '../services/whatsapp';
+import { pushService } from '../services/push';
 
 const router = Router();
 
@@ -102,6 +103,13 @@ const handleWebhookEvent = async (req: any, res: any) => {
           timestamp: new Date().toISOString(),
           deliveryStatus: 'received'
         });
+
+        // Trigger Web Push Notification to registered iPhones/devices
+        pushService.sendPushToAll(
+          `💬 ${contactName || 'Novo Cliente'}`,
+          msgText,
+          '/chat'
+        ).catch(err => console.error('Erro ao disparar push no webhook:', err));
       }
 
       // Delivery/read status updates from Meta

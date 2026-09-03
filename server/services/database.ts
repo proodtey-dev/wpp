@@ -98,6 +98,12 @@ const initPromise = (async () => {
       deliveryStatus TEXT DEFAULT 'sent',
       status TEXT DEFAULT 'unread',
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      endpoint TEXT UNIQUE NOT NULL,
+      keys TEXT NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -401,6 +407,38 @@ export const dbService = {
       if (value !== undefined) {
         await dbService.setSetting(key, String(value));
       }
+    }
+  },
+
+  // Push Subscriptions
+  savePushSubscription: async (endpoint: string, keysJson: string) => {
+    await ensureInit();
+    if (useTurso) {
+      await client.execute({
+        sql: 'INSERT INTO push_subscriptions (endpoint, keys) VALUES (?, ?) ON CONFLICT(endpoint) DO UPDATE SET keys = excluded.keys',
+        args: [endpoint, keysJson]
+      });
+    } else {
+      db.prepare('INSERT INTO push_subscriptions (endpoint, keys) VALUES (?, ?) ON CONFLICT(endpoint) DO UPDATE SET keys = excluded.keys').run(endpoint, keysJson);
+    }
+  },
+
+  removePushSubscription: async (endpoint: string) => {
+    await ensureInit();
+    if (useTurso) {
+      await client.execute({ sql: 'DELETE FROM push_subscriptions WHERE endpoint = ?', args: [endpoint] });
+    } else {
+      db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+    }
+  },
+
+  getAllPushSubscriptions: async (): Promise<Array<{ endpoint: string; keys: string }>> => {
+    await ensureInit();
+    if (useTurso) {
+      const res = await client.execute('SELECT endpoint, keys FROM push_subscriptions');
+      return res.rows as unknown as Array<{ endpoint: string; keys: string }>;
+    } else {
+      return db.prepare('SELECT endpoint, keys FROM push_subscriptions').all() as Array<{ endpoint: string; keys: string }>;
     }
   }
 };

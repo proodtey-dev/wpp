@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck, Settings as SettingsIcon, RefreshCw } from 'lucide-react';
+import { Key, MessageSquare, Save, CheckCircle2, XCircle, Eye, EyeOff, ShieldCheck, Settings as SettingsIcon, RefreshCw, Bell, Smartphone, Share2, PlusSquare, Send, Check } from 'lucide-react';
 import { DEFAULT_MESSAGE } from '../lib/utils';
 import { getSettings, updateSettings, testWhatsAppApi } from '../lib/api';
+import { checkPushStatus, subscribeUserToPush, sendTestPush } from '../lib/push';
 
 const Settings = () => {
   const [googleKey, setGoogleKey] = useState('');
@@ -16,6 +17,14 @@ const Settings = () => {
   const [toast, setToast] = useState('');
   const [metaTemplates, setMetaTemplates] = useState<{name: string; status: string; language: string}[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [pushInfo, setPushInfo] = useState({
+    isSupported: false,
+    permission: 'default' as NotificationPermission,
+    isSubscribed: false,
+    isStandalone: false,
+    isIOS: false
+  });
+  const [activatingPush, setActivatingPush] = useState(false);
 
   useEffect(() => {
     getSettings().then(data => {
@@ -28,7 +37,32 @@ const Settings = () => {
         if (data.defaultTemplateName) setTemplateName(data.defaultTemplateName);
       }
     }).catch(() => {});
+
+    refreshPushStatus();
   }, []);
+
+  const refreshPushStatus = async () => {
+    const status = await checkPushStatus();
+    setPushInfo(status);
+  };
+
+  const handleEnablePush = async () => {
+    setActivatingPush(true);
+    try {
+      const res = await subscribeUserToPush();
+      showToast(res.message);
+      await refreshPushStatus();
+    } catch (e: any) {
+      showToast(e.message || 'Erro ao ativar notificações');
+    } finally {
+      setActivatingPush(false);
+    }
+  };
+
+  const handleTestPushClick = async () => {
+    const res = await sendTestPush();
+    showToast(res.message);
+  };
 
   const fetchMetaTemplates = async () => {
     setLoadingTemplates(true);
@@ -235,6 +269,75 @@ const Settings = () => {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Notificações Push (iPhone & Android PWA) */}
+        <SectionCard accent="#22c55e">
+          <SectionHeader
+            icon={<Bell size={18} style={{ color: 'var(--green)' }} />}
+            iconBg="var(--green-dim)"
+            title="Notificações Push no Celular (iPhone & Android)"
+            subtitle="Receba alertas com som quando clientes responderem no WhatsApp"
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Passos para iPhone se não estiver na tela de início */}
+            {pushInfo.isIOS && !pushInfo.isStandalone && (
+              <div style={{
+                background: 'rgba(34, 197, 94, 0.06)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                borderRadius: 12,
+                padding: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, color: 'var(--green)', marginBottom: 8 }}>
+                  <Smartphone size={16} /> Como instalar no iPhone (iOS):
+                </div>
+                <ol style={{ paddingLeft: 18, fontSize: 12, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 6, lineHeight: 1.5 }}>
+                  <li>No Safari do iPhone, toque no botão <strong>Compartilhar <Share2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /></strong> (rodapé).</li>
+                  <li>Role para baixo e toque em <strong>"Adicionar à Tela de Início" <PlusSquare size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /></strong>.</li>
+                  <li>Abra o app direto pelo ícone criado na Tela de Início do iPhone.</li>
+                  <li>Volte aqui nesta tela e clique no botão <strong>"Ativar Notificações"</strong> abaixo.</li>
+                </ol>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+              <div style={{ background: 'var(--bg-4)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 600 }}>Permissão</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: pushInfo.permission === 'granted' ? 'var(--green)' : '#f59e0b' }}>
+                  {pushInfo.permission === 'granted' ? 'Concedida ✅' : pushInfo.permission === 'denied' ? 'Negada ❌' : 'Pendente ⚠️'}
+                </div>
+              </div>
+              <div style={{ background: 'var(--bg-4)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 600 }}>Status do Dispositivo</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: pushInfo.isSubscribed ? 'var(--green)' : 'var(--text-2)' }}>
+                  {pushInfo.isSubscribed ? 'Notificações Ativas 🔔' : 'Não Inscrito 🔕'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleEnablePush}
+                disabled={activatingPush}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                <Bell size={14} />
+                {activatingPush ? 'Ativando…' : pushInfo.isSubscribed ? 'Re-ativar Notificações' : 'Ativar Notificações Push'}
+              </button>
+
+              {pushInfo.isSubscribed && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleTestPushClick}
+                  style={{ justifyContent: 'center' }}
+                >
+                  <Send size={14} /> Enviar Notificação de Teste
+                </button>
               )}
             </div>
           </div>

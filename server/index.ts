@@ -6,6 +6,7 @@ import leadsRoutes from './routes/leads';
 import whatsappRoutes from './routes/whatsapp';
 import settingsRoutes from './routes/settings';
 import chatRoutes from './routes/chat';
+import pushRoutes from './routes/push';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/webhook', chatRoutes);
+app.use('/api/push', pushRoutes);
 
 // Servir frontend compilado em produção
 const distPath = path.join(process.cwd(), 'dist');
