@@ -111,10 +111,16 @@ const initPromise = (async () => {
     for (const stmt of statements) {
       await client.execute(stmt);
     }
+    // Migration: adicionar colunas de mídia caso não existam
+    try { await client.execute('ALTER TABLE chat_messages ADD COLUMN mediaUrl TEXT'); } catch {}
+    try { await client.execute('ALTER TABLE chat_messages ADD COLUMN mediaType TEXT'); } catch {}
   } else {
     for (const stmt of statements) {
       db.exec(stmt);
     }
+    // Migration: adicionar colunas de mídia caso não existam
+    try { db.exec('ALTER TABLE chat_messages ADD COLUMN mediaUrl TEXT'); } catch {}
+    try { db.exec('ALTER TABLE chat_messages ADD COLUMN mediaType TEXT'); } catch {}
   }
 })().catch(err => console.error('Erro ao inicializar tabelas:', err));
 
@@ -305,20 +311,20 @@ export const dbService = {
   },
 
   // Chat / CRM
-  saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string }) => {
+  saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string; mediaUrl?: string; mediaType?: string }) => {
     await ensureInit();
     const cleanPhone = msg.phone.replace(/\D/g, '');
     if (useTurso) {
       await client.execute({
-        sql: `INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus) VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent']
+        sql: `INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null]
       });
     } else {
       const stmt = db.prepare(`
-        INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent');
+      stmt.run(cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null);
     }
   },
 

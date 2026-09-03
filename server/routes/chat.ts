@@ -76,7 +76,62 @@ const handleWebhookEvent = async (req: any, res: any) => {
         const msgObj = value.messages[0];
         const fromPhone = msgObj.from;
         const contactName = value.contacts?.[0]?.profile?.name || 'Cliente';
-        const msgText = msgObj.text?.body || msgObj.caption || '[Mídia / Botão]';
+
+        const msgType = msgObj.type;
+        let msgText = msgObj.text?.body || '';
+        let mediaUrl: string | undefined = undefined;
+        let mediaType: string | undefined = undefined;
+
+        if (msgType === 'image') {
+          const mediaId = msgObj.image?.id;
+          const caption = msgObj.image?.caption || '';
+          msgText = caption ? `📷 ${caption}` : '📷 Imagem';
+          if (mediaId) {
+            mediaUrl = `/api/chat/media/${mediaId}`;
+            mediaType = 'image';
+          }
+        } else if (msgType === 'sticker') {
+          const mediaId = msgObj.sticker?.id;
+          msgText = '💟 Figurinha';
+          if (mediaId) {
+            mediaUrl = `/api/chat/media/${mediaId}`;
+            mediaType = 'sticker';
+          }
+        } else if (msgType === 'audio' || msgType === 'voice') {
+          const audioObj = msgObj.audio || msgObj.voice;
+          const mediaId = audioObj?.id;
+          msgText = '🎵 Áudio de voz';
+          if (mediaId) {
+            mediaUrl = `/api/chat/media/${mediaId}`;
+            mediaType = 'audio';
+          }
+        } else if (msgType === 'video') {
+          const mediaId = msgObj.video?.id;
+          const caption = msgObj.video?.caption || '';
+          msgText = caption ? `🎥 ${caption}` : '🎥 Vídeo';
+          if (mediaId) {
+            mediaUrl = `/api/chat/media/${mediaId}`;
+            mediaType = 'video';
+          }
+        } else if (msgType === 'document') {
+          const mediaId = msgObj.document?.id;
+          const filename = msgObj.document?.filename || 'Documento';
+          msgText = `📄 Documento: ${filename}`;
+          if (mediaId) {
+            mediaUrl = `/api/chat/media/${mediaId}`;
+            mediaType = 'document';
+          }
+        } else if (msgType === 'button') {
+          msgText = msgObj.button?.text || '[Botão]';
+        } else if (msgType === 'interactive') {
+          msgText = msgObj.interactive?.button_reply?.title || msgObj.interactive?.list_reply?.title || '[Resposta Interativa]';
+        } else if (msgType === 'reaction') {
+          msgText = msgObj.reaction?.emoji || '👍';
+        } else if (msgType === 'location') {
+          msgText = `📍 Localização: ${msgObj.location?.name || ''} (${msgObj.location?.latitude}, ${msgObj.location?.longitude})`;
+        } else if (!msgText) {
+          msgText = '[Mensagem do WhatsApp]';
+        }
 
         await dbService.saveChatMessage({
           phone: fromPhone,
@@ -84,7 +139,9 @@ const handleWebhookEvent = async (req: any, res: any) => {
           sender: 'user',
           body: msgText,
           waMessageId: msgObj.id,
-          deliveryStatus: 'received'
+          deliveryStatus: 'received',
+          mediaUrl,
+          mediaType
         });
 
         // Update lead status if exists
@@ -100,6 +157,8 @@ const handleWebhookEvent = async (req: any, res: any) => {
           contactName,
           sender: 'user',
           body: msgText,
+          mediaUrl,
+          mediaType,
           timestamp: new Date().toISOString(),
           deliveryStatus: 'received'
         });
@@ -209,9 +268,59 @@ router.post('/send', async (req, res) => {
       waMessageId: waResult.messageId
     });
 
-    res.json({ success: waResult.success, result: waResult, deliveryStatus });
+    res.json({ success: true, result: waResult, deliveryStatus });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Proxy de Mídia do WhatsApp (imagens, figurinhas, áudios, vídeos, documentos)
+router.get('/media/:mediaId', async (req: Request, res: Response) => {
+  try {
+    const { mediaId } = req.params;
+    const settings = await dbService.getSettings();
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+
+    if (!token) {
+      return res.status(400).send('Token do WhatsApp não configurado');
+    }
+
+    // 1. Obter URL do arquivo na Meta API
+    const metaResp = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!metaResp.ok) {
+      const err = await metaResp.text();
+      console.error('Erro ao buscar mídia na Meta API:', err);
+      return res.status(404).send('Mídia não encontrada na Meta');
+    }
+
+    const metaData = await metaResp.json() as any;
+    const fileUrl = metaData.url;
+
+    if (!fileUrl) {
+      return res.status(404).send('URL da mídia não disponível');
+    }
+
+    // 2. Baixar os bytes da mídia usando o token do WhatsApp
+    const mediaResp = await fetch(fileUrl, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!mediaResp.ok) {
+      return res.status(500).send('Erro ao baixar arquivo de mídia da Meta');
+    }
+
+    const contentType = metaData.mime_type || mediaResp.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache de 24h
+
+    const arrayBuffer = await mediaResp.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (error: any) {
+    console.error('Erro no proxy de mídia do WhatsApp:', error.message);
+    res.status(500).send('Erro interno ao carregar mídia');
   }
 });
 

@@ -347,6 +347,52 @@ const Chat = () => {
                     )}
                     <div className={`message-bubble ${isMe ? 'me' : 'user'}`}>
                       <div>{msg.body}</div>
+
+                      {/* Renderização de Mídias e Figurinhas */}
+                      {msg.mediaUrl && msg.mediaType === 'image' && (
+                        <img
+                          src={msg.mediaUrl}
+                          alt="Imagem"
+                          style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, marginTop: 6, display: 'block' }}
+                        />
+                      )}
+
+                      {msg.mediaUrl && msg.mediaType === 'sticker' && (
+                        <img
+                          src={msg.mediaUrl}
+                          alt="Figurinha"
+                          style={{ width: 130, height: 130, objectFit: 'contain', marginTop: 6, display: 'block' }}
+                        />
+                      )}
+
+                      {msg.mediaUrl && msg.mediaType === 'audio' && (
+                        <audio
+                          controls
+                          src={msg.mediaUrl}
+                          style={{ marginTop: 6, maxWidth: '100%', height: 36 }}
+                        />
+                      )}
+
+                      {msg.mediaUrl && msg.mediaType === 'video' && (
+                        <video
+                          controls
+                          src={msg.mediaUrl}
+                          style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, marginTop: 6, display: 'block' }}
+                        />
+                      )}
+
+                      {msg.mediaUrl && msg.mediaType === 'document' && (
+                        <a
+                          href={msg.mediaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ marginTop: 6, display: 'inline-flex' }}
+                        >
+                          📄 Abrir Documento
+                        </a>
+                      )}
+
                       {isMe && (
                         <div className="message-meta">
                           <span>{formatTime(msg.timestamp)}</span>
