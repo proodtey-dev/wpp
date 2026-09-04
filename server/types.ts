@@ -9,7 +9,7 @@ export interface Lead {
   placeId: string;
   photoUrl: string | null;
   category: string | null;
-  status: 'novo' | 'contatado' | 'respondeu' | 'convertido' | 'ignorado';
+  status: 'novo' | 'contatado' | 'respondeu' | 'desenvolver' | 'em_desenvolvimento' | 'aguardando_aprovacao' | 'fechado' | 'perdido' | string;
   createdAt?: string;
 }
 

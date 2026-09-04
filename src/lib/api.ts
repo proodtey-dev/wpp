@@ -97,3 +97,23 @@ export async function sendChatMessage(data: { phone: string; body: string; conta
     body: JSON.stringify(data)
   }).then(r => r.json());
 }
+
+export async function updateLeadStatusByPhone(phone: string, status: string) {
+  return fetch(`${API_BASE}/chat/lead-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, status })
+  }).then(r => r.json());
+}
+
+export const CRM_STAGES = [
+  { id: 'novo', label: 'Novo Lead', icon: '📥', color: 'badge-gray' },
+  { id: 'contatado', label: 'Proposta Enviada', icon: '📩', color: 'badge-yellow' },
+  { id: 'respondeu', label: 'Respondeu', icon: '💬', color: 'badge-cyan' },
+  { id: 'desenvolver', label: 'Criar Prévia / Desenvolver', icon: '🛠️', color: 'badge-purple' },
+  { id: 'em_desenvolvimento', label: 'Site em Desenvolvimento', icon: '⚡', color: 'badge-indigo' },
+  { id: 'aguardando_aprovacao', label: 'Aguardando Aprovação', icon: '⏳', color: 'badge-orange' },
+  { id: 'fechado', label: 'Cliente Fechado', icon: '🎉', color: 'badge-green' },
+  { id: 'perdido', label: 'Sem Interesse', icon: '❌', color: 'badge-red' },
+];
+

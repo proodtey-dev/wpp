@@ -359,12 +359,30 @@ export const dbService = {
       GROUP BY cm.phone
       ORDER BY cm.timestamp DESC
     `;
-    if (useTurso) {
-      const res = await client.execute(sql);
-      return res.rows;
-    } else {
-      return db.prepare(sql).all();
+    const rows = useTurso ? (await client.execute(sql)).rows : db.prepare(sql).all();
+    const leads = await dbService.getAllLeads();
+    return (rows as any[]).map((conv: any) => {
+      const cleanConvPhone = String(conv.phone).replace(/\D/g, '');
+      const match = leads.find(l => l.phone && String(l.phone).replace(/\D/g, '') === cleanConvPhone);
+      return {
+        ...conv,
+        leadId: match?.id || null,
+        leadStatus: match?.status || 'novo',
+        leadName: match?.name || conv.contactName,
+      };
+    });
+  },
+
+  updateLeadStatusByPhone: async (phone: string, status: string) => {
+    await ensureInit();
+    const cleanPhone = phone.replace(/\D/g, '');
+    const leads = await dbService.getAllLeads();
+    const lead = leads.find(l => l.phone && l.phone.replace(/\D/g, '') === cleanPhone);
+    if (lead && lead.id) {
+      await dbService.updateLead(lead.id, { status });
+      return { success: true, leadId: lead.id, status };
     }
+    return { success: false, message: 'Lead não encontrado para este telefone' };
   },
 
   getChatMessagesByPhone: async (phone: string) => {

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Search, Phone, Zap, CheckCheck, Check, X,
-  Clock, RefreshCw, AlertCircle, ArrowLeft
+  Clock, RefreshCw, ArrowLeft, Tag
 } from 'lucide-react';
-import { getConversations, getChatMessages, sendChatMessage } from '../lib/api';
+import {
+  getConversations, getChatMessages, sendChatMessage,
+  updateLeadStatusByPhone, CRM_STAGES
+} from '../lib/api';
 
 const API_BASE = '/api';
 
@@ -27,7 +30,6 @@ const formatTime = (ts: string) => {
   } catch { return ''; }
 };
 
-// Toca um som suave de notificação usando Web Audio API (sem arquivo externo)
 const playNotificationSound = () => {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -36,7 +38,6 @@ const playNotificationSound = () => {
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.type = 'sine';
-    // Dois bips suaves: primeira nota e segunda nota mais alta
     osc.frequency.setValueAtTime(520, ctx.currentTime);
     osc.frequency.setValueAtTime(780, ctx.currentTime + 0.12);
     gain.gain.setValueAtTime(0, ctx.currentTime);
@@ -47,11 +48,6 @@ const playNotificationSound = () => {
   } catch {}
 };
 
-// Ícone de entrega:
-// Clock  = enviando (cinza)
-// ✓ cinza = enviado para o WhatsApp
-// ✓✓ verde = entregue no celular do cliente
-// ✓✓ azul  = lido pelo cliente
 const DeliveryIcon = ({ status }: { status: string }) => {
   if (status === 'failed') return <X size={12} className="delivery-icon failed" />;
   if (status === 'read') return <CheckCheck size={12} className="delivery-icon read" />;
@@ -66,6 +62,7 @@ const Chat = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
+  const [stageFilter, setStageFilter] = useState<string>('all');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
@@ -108,19 +105,16 @@ const Chat = () => {
       es.onopen = () => setSseConnected(true);
       es.onerror = () => {
         setSseConnected(false);
-        // Reconnect after 3s
         setTimeout(connectSSE, 3000);
       };
 
       es.addEventListener('new_message', (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
 
-        // Toca som de notificação só quando é mensagem recebida (do cliente)
         if (msg.sender === 'user') {
           playNotificationSound();
         }
 
-        // Atualiza lista de conversas
         setConversations(prev => {
           const existing = prev.find(c => c.phone === msg.phone);
           if (existing) {
@@ -129,13 +123,11 @@ const Chat = () => {
               ...prev.filter(c => c.phone !== msg.phone)
             ];
           }
-          return [{ phone: msg.phone, contactName: msg.contactName || 'Cliente', lastMessage: msg.body, timestamp: msg.timestamp, unreadCount: msg.sender === 'user' ? 1 : 0 }, ...prev];
+          return [{ phone: msg.phone, contactName: msg.contactName || 'Cliente', lastMessage: msg.body, timestamp: msg.timestamp, leadStatus: 'novo', unreadCount: msg.sender === 'user' ? 1 : 0 }, ...prev];
         });
 
-        // Se é a conversa ativa, adiciona a mensagem
         if (selectedPhoneRef.current === msg.phone) {
           setMessages(prev => {
-            // evita duplicatas
             if (prev.find(m => m.id === msg.id || (m.body === msg.body && m.sender === msg.sender && Math.abs(new Date(m.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 2000))) {
               return prev;
             }
@@ -150,6 +142,11 @@ const Chat = () => {
         setMessages(prev => prev.map(m =>
           m.waMessageId === waMessageId ? { ...m, deliveryStatus } : m
         ));
+      });
+
+      es.addEventListener('lead_status_updated', (e: MessageEvent) => {
+        const { phone, status } = JSON.parse(e.data);
+        setConversations(prev => prev.map(c => c.phone === phone ? { ...c, leadStatus: status } : c));
       });
     };
 
@@ -167,7 +164,6 @@ const Chat = () => {
   useEffect(() => {
     if (selectedPhone) {
       loadMessages(selectedPhone);
-      // Mark unread as read
       setConversations(prev => prev.map(c => c.phone === selectedPhone ? { ...c, unreadCount: 0 } : c));
     }
   }, [selectedPhone]);
@@ -175,6 +171,16 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedPhone) return;
+    setConversations(prev => prev.map(c => c.phone === selectedPhone ? { ...c, leadStatus: newStatus } : c));
+    try {
+      await updateLeadStatusByPhone(selectedPhone, newStatus);
+    } catch (err) {
+      console.error('Erro ao atualizar status do lead:', err);
+    }
+  };
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -184,7 +190,6 @@ const Chat = () => {
     if (!textToSend) setInputText('');
     setSending(true);
 
-    // Optimistic update
     const tempId = Date.now();
     const tempMsg = {
       id: tempId,
@@ -200,7 +205,6 @@ const Chat = () => {
     try {
       const result = await sendChatMessage({ phone: selectedPhone, body: text, contactName: currentConv?.contactName });
 
-      // Update temp msg with real delivery status
       setMessages(prev => prev.map(m =>
         m.id === tempId
           ? { ...m, deliveryStatus: result.deliveryStatus || 'sent', waMessageId: result.result?.messageId }
@@ -227,10 +231,17 @@ const Chat = () => {
   };
 
   const selectedConv = conversations.find(c => c.phone === selectedPhone);
-  const filteredConvs = conversations.filter(c =>
-    c.contactName?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-    c.phone?.includes(searchFilter)
-  );
+  const currentStage = CRM_STAGES.find(s => s.id === (selectedConv?.leadStatus || 'novo')) || CRM_STAGES[0];
+
+  const filteredConvs = conversations.filter(c => {
+    const matchesSearch =
+      !searchFilter ||
+      c.contactName?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      c.phone?.includes(searchFilter);
+    const matchesStage =
+      stageFilter === 'all' || (c.leadStatus || 'novo') === stageFilter;
+    return matchesSearch && matchesStage;
+  });
 
   const handleSelectConv = (phone: string) => {
     setSelectedPhone(phone);
@@ -252,7 +263,8 @@ const Chat = () => {
               <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{sseConnected ? 'Ao vivo' : 'Conectando...'}</span>
             </div>
           </div>
-          <div style={{ position: 'relative' }}>
+
+          <div style={{ position: 'relative', marginBottom: 10 }}>
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
             <input
               className="input"
@@ -263,35 +275,88 @@ const Chat = () => {
               onChange={e => setSearchFilter(e.target.value)}
             />
           </div>
+
+          {/* CRM Stage Filters */}
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4 }} className="hide-scrollbar">
+            <button
+              onClick={() => setStageFilter('all')}
+              style={{
+                background: stageFilter === 'all' ? 'var(--green)' : 'var(--bg-4)',
+                color: stageFilter === 'all' ? '#000' : 'var(--text-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '2px 8px',
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Todos ({conversations.length})
+            </button>
+            {CRM_STAGES.map(stage => {
+              const count = conversations.filter(c => (c.leadStatus || 'novo') === stage.id).length;
+              if (count === 0 && stageFilter !== stage.id) return null;
+              return (
+                <button
+                  key={stage.id}
+                  onClick={() => setStageFilter(stage.id)}
+                  style={{
+                    background: stageFilter === stage.id ? 'var(--bg-3)' : 'var(--bg-4)',
+                    color: 'var(--text)',
+                    border: stageFilter === stage.id ? '1px solid var(--green)' : '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: '2px 8px',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3
+                  }}
+                >
+                  <span>{stage.icon}</span> {stage.label.split(' ')[0]} ({count})
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="chat-list">
           {filteredConvs.length === 0 ? (
             <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>
               <MessageSquare size={28} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-              <p>Nenhuma conversa ainda.</p>
-              <p style={{ marginTop: 4, fontSize: 11 }}>As mensagens recebidas aparecerão aqui em tempo real.</p>
+              <p>Nenhuma conversa nesta categoria.</p>
             </div>
           ) : (
-            filteredConvs.map(conv => (
-              <div
-                key={conv.phone}
-                className={`chat-item ${selectedPhone === conv.phone ? 'active' : ''}`}
-                onClick={() => handleSelectConv(conv.phone)}
-              >
-                <div className="chat-avatar">{(conv.contactName || 'C')[0].toUpperCase()}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="chat-item-name">{conv.contactName || formatPhone(conv.phone)}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>{formatTime(conv.timestamp)}</span>
+            filteredConvs.map(conv => {
+              const stage = CRM_STAGES.find(s => s.id === (conv.leadStatus || 'novo')) || CRM_STAGES[0];
+              return (
+                <div
+                  key={conv.phone}
+                  className={`chat-item ${selectedPhone === conv.phone ? 'active' : ''}`}
+                  onClick={() => handleSelectConv(conv.phone)}
+                >
+                  <div className="chat-avatar">{(conv.contactName || 'C')[0].toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="chat-item-name">{conv.contactName || formatPhone(conv.phone)}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>{formatTime(conv.timestamp)}</span>
+                    </div>
+                    <span className="chat-item-preview">{conv.lastMessage}</span>
+                    <div style={{ marginTop: 4 }}>
+                      <span className={`badge ${stage.color}`} style={{ fontSize: 9, padding: '1px 6px' }}>
+                        {stage.icon} {stage.label}
+                      </span>
+                    </div>
                   </div>
-                  <span className="chat-item-preview">{conv.lastMessage}</span>
+                  {conv.unreadCount > 0 && selectedPhone !== conv.phone && (
+                    <span className="nav-badge" style={{ flexShrink: 0, fontSize: 9 }}>{conv.unreadCount}</span>
+                  )}
                 </div>
-                {conv.unreadCount > 0 && selectedPhone !== conv.phone && (
-                  <span className="nav-badge" style={{ flexShrink: 0, fontSize: 9 }}>{conv.unreadCount}</span>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -301,29 +366,51 @@ const Chat = () => {
         {selectedPhone ? (
           <>
           {/* Header */}
-          <div className="chat-main-header">
-            {/* Back button — mobile only */}
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setMobileView('list')}
-              style={{ marginRight: 4, display: 'none' }}
-              id="chat-back-btn"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <style>{`@media(max-width:768px){#chat-back-btn{display:flex!important}}`}</style>
-            <div className="chat-avatar" style={{ width: 34, height: 34, fontSize: 13 }}>
-              {(selectedConv?.contactName || 'C')[0].toUpperCase()}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{selectedConv?.contactName || 'Cliente'}</div>
-              <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Phone size={10} /> {formatPhone(selectedPhone)}
+          <div className="chat-main-header" style={{ justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setMobileView('list')}
+                style={{ marginRight: 2, display: 'none' }}
+                id="chat-back-btn"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <style>{`@media(max-width:768px){#chat-back-btn{display:flex!important}}`}</style>
+              <div className="chat-avatar" style={{ width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>
+                {(selectedConv?.contactName || 'C')[0].toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedConv?.contactName || 'Cliente'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Phone size={10} /> {formatPhone(selectedPhone)}
+                </div>
               </div>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => loadMessages(selectedPhone)} title="Recarregar mensagens">
-              <RefreshCw size={13} />
-            </button>
+
+            {/* CRM Stage Selector Pill */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Tag size={12} color="var(--text-3)" />
+                <select
+                  className={`crm-pill-select ${currentStage.color}`}
+                  value={selectedConv?.leadStatus || 'novo'}
+                  onChange={e => handleStatusChange(e.target.value)}
+                >
+                  {CRM_STAGES.map(stage => (
+                    <option key={stage.id} value={stage.id} style={{ background: '#111213', color: '#fff' }}>
+                      {stage.icon} {stage.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button className="btn btn-ghost btn-sm" onClick={() => loadMessages(selectedPhone)} title="Recarregar mensagens">
+                <RefreshCw size={13} />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -348,7 +435,7 @@ const Chat = () => {
                     <div className={`message-bubble ${isMe ? 'me' : 'user'}`}>
                       <div>{msg.body}</div>
 
-                      {/* Renderização de Mídias e Figurinhas */}
+                      {/* Mídia e anexos */}
                       {msg.mediaUrl && msg.mediaType === 'image' && (
                         <img
                           src={msg.mediaUrl}
@@ -470,12 +557,12 @@ const Chat = () => {
           <div style={{ flex: 1, alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 12, color: 'var(--text-3)' }}>
             <MessageSquare size={44} style={{ opacity: 0.15 }} />
             <div>
-              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center' }}>Caixa de Entrada</p>
-              <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar e responder</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center' }}>Caixa de Entrada & CRM</p>
+              <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar e mudar a categoria do lead</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 8 }}>
               <span className="online-dot" style={{ background: sseConnected ? 'var(--green)' : '#f59e0b' }} />
-              {sseConnected ? 'Conectado — novas mensagens chegam automaticamente' : 'Conectando ao stream de mensagens...'}
+              {sseConnected ? 'Conectado ao vivo — novas mensagens chegam automaticamente' : 'Conectando ao stream de mensagens...'}
             </div>
           </div>
         )}

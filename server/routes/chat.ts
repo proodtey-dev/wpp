@@ -274,6 +274,28 @@ router.post('/send', async (req, res) => {
   }
 });
 
+// Update lead status by phone number
+router.post('/lead-status', async (req: Request, res: Response) => {
+  try {
+    const { phone, status } = req.body;
+    if (!phone || !status) {
+      return res.status(400).json({ error: 'phone e status são obrigatórios' });
+    }
+
+    const result = await dbService.updateLeadStatusByPhone(phone, status);
+    if (result.success) {
+      broadcastToSSE('lead_status_updated', {
+        phone,
+        leadId: result.leadId,
+        status
+      });
+    }
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Proxy de Mídia do WhatsApp (imagens, figurinhas, áudios, vídeos, documentos)
 router.get('/media/:mediaId', async (req: Request, res: Response) => {
   try {
