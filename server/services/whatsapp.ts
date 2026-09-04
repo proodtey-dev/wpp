@@ -154,13 +154,16 @@ export const whatsappService = {
     const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
     const token = config.token || process.env.WHATSAPP_TOKEN;
 
-    // Meta API requer que o campo 'type' seja uma das strings literais: 'audio', 'image', 'document', 'video', 'sticker'
     const mediaTypeCategory = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : 'audio';
+
+    const fileObj = typeof File !== 'undefined'
+      ? new File([buffer], filename, { type: mimeType })
+      : new Blob([buffer], { type: mimeType });
 
     const formData = new FormData();
     formData.append('messaging_product', 'whatsapp');
     formData.append('type', mediaTypeCategory);
-    formData.append('file', new Blob([buffer], { type: mimeType }), filename);
+    formData.append('file', fileObj, filename);
 
     console.log(`📤 Subindo arquivo para Meta API: filename=${filename}, category=${mediaTypeCategory}, mime=${mimeType}, size=${buffer.length} bytes...`);
 

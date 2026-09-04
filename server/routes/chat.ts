@@ -312,12 +312,18 @@ router.post('/send-audio', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'WhatsApp API não configurada' });
     }
 
-    const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+    const cleanBase64 = audioBase64.replace(/^data:audio\/[a-zA-Z0-9-+.]+;base64,/, '');
     const buffer = Buffer.from(cleanBase64, 'base64');
-    const audioMime = mimeType || 'audio/mp4';
-    const ext = audioMime.includes('ogg') ? 'ogg' : audioMime.includes('webm') ? 'webm' : 'mp4';
+    
+    // Meta API requer tipos de áudio suportados: audio/mp4, audio/aac, audio/mpeg, audio/ogg
+    let audioMime = mimeType || 'audio/mp4';
+    if (audioMime.includes('webm')) {
+      audioMime = 'audio/mp4';
+    }
+    const ext = audioMime.includes('ogg') ? 'ogg' : audioMime.includes('aac') ? 'aac' : 'mp4';
+    const filename = `voice_${Date.now()}.${ext}`;
 
-    const mediaId = await whatsappService.uploadMedia(buffer, audioMime, `voice_${Date.now()}.${ext}`, {
+    const mediaId = await whatsappService.uploadMedia(buffer, audioMime, filename, {
       token,
       phoneNumberId
     });
@@ -326,6 +332,13 @@ router.post('/send-audio', async (req: Request, res: Response) => {
       token,
       phoneNumberId
     });
+
+    let errorMsg = waResult.error;
+    if (!waResult.success && errorMsg) {
+      if (errorMsg.includes('24 hours') || errorMsg.includes('131047') || errorMsg.includes('re-engagement')) {
+        errorMsg = 'Janela de 24h expirada: O WhatsApp só permite enviar áudios/mensagens diretas para quem te respondeu nas últimas 24 horas. Para este lead, envie primeiro a Proposta (Template).';
+      }
+    }
 
     const deliveryStatus = waResult.success ? 'sent' : 'failed';
     const mediaUrl = `/api/chat/media/${mediaId}`;
@@ -353,7 +366,14 @@ router.post('/send-audio', async (req: Request, res: Response) => {
       waMessageId: waResult.messageId
     });
 
-    res.json({ success: true, result: waResult, mediaUrl, mediaId, deliveryStatus });
+    res.json({
+      success: waResult.success,
+      result: waResult,
+      mediaUrl,
+      mediaId,
+      deliveryStatus,
+      error: errorMsg
+    });
   } catch (e: any) {
     console.error('Erro ao enviar áudio no chat:', e);
     res.status(500).json({ error: e.message });
