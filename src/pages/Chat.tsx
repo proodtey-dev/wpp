@@ -55,8 +55,8 @@ const playNotificationSound = () => {
   } catch {}
 };
 
-const DeliveryIcon = ({ status }: { status: string }) => {
-  if (status === 'failed') return <X size={12} className="delivery-icon failed" />;
+const DeliveryIcon = ({ status, error }: { status: string; error?: string }) => {
+  if (status === 'failed') return <X size={12} className="delivery-icon failed" title={error || "Erro no envio: Janela de 24h da Meta encerrada ou número sem WhatsApp. Envie um Template em Campanhas."} />;
   if (status === 'read') return <CheckCheck size={12} className="delivery-icon read" />;
   if (status === 'delivered') return <CheckCheck size={12} className="delivery-icon delivered" />;
   if (status === 'sent') return <Check size={12} className="delivery-icon sent" />;
@@ -636,7 +636,7 @@ const Chat = () => {
                       {isMe && (
                         <div className="message-meta">
                           <span>{formatTime(msg.timestamp)}</span>
-                          <DeliveryIcon status={msg.deliveryStatus || 'sent'} />
+                          <DeliveryIcon status={msg.deliveryStatus || 'sent'} error={msg.error} />
                         </div>
                       )}
                       {!isMe && (

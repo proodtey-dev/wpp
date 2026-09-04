@@ -268,7 +268,7 @@ router.post('/send', async (req, res) => {
       waMessageId: waResult.messageId
     });
 
-    res.json({ success: true, result: waResult, deliveryStatus });
+    res.json({ success: waResult.success, result: waResult, deliveryStatus, error: waResult.error });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
