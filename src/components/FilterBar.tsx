@@ -10,6 +10,8 @@ interface FilterBarProps {
   setNoWebsite: (v: boolean) => void;
   hasPhone: boolean;
   setHasPhone: (v: boolean) => void;
+  hideAlreadyContacted?: boolean;
+  setHideAlreadyContacted?: (v: boolean) => void;
   businessType: string;
   setBusinessType: (v: string) => void;
   resultCount: number;
@@ -20,6 +22,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   minRating, setMinRating,
   noWebsite, setNoWebsite,
   hasPhone, setHasPhone,
+  hideAlreadyContacted = true, setHideAlreadyContacted,
   businessType, setBusinessType,
   resultCount
 }) => {
@@ -82,10 +85,21 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
           Com telefone
         </label>
+        {setHideAlreadyContacted && (
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-[#25D366] font-medium" title="Oculta empresas que você já salvou ou mandou mensagem">
+            <input 
+              type="checkbox" 
+              checked={hideAlreadyContacted} 
+              onChange={(e) => setHideAlreadyContacted(e.target.checked)}
+              className="accent-[#25D366] w-4 h-4 cursor-pointer"
+            />
+            🛡️ Ocultar já prospectados
+          </label>
+        )}
       </div>
 
       <div className="ml-auto text-sm text-[rgba(255,255,255,0.6)]">
-        <span className="text-white font-medium">{resultCount}</span> resultados
+        <span className="text-white font-medium">{resultCount}</span> resultados novos
       </div>
     </div>
   );

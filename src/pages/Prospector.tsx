@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Save, Send, Sparkles, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import MapSearch from '../components/MapSearch';
 import FilterBar from '../components/FilterBar';
 import LeadCard from '../components/LeadCard';
 import CampaignModal from '../components/CampaignModal';
-import { geocodeLocation, searchBusinesses, saveLeads, sendWhatsApp } from '../lib/api';
+import { geocodeLocation, searchBusinesses, saveLeads, sendWhatsApp, getLeads, getConversations } from '../lib/api';
 
 const Prospector = () => {
   const [searchParams] = useSearchParams();
@@ -22,13 +22,54 @@ const Prospector = () => {
   const [minRating, setMinRating] = useState(1);
   const [noWebsite, setNoWebsite] = useState(true);
   const [hasPhone, setHasPhone] = useState(true);
+  const [hideAlreadyContacted, setHideAlreadyContacted] = useState(true);
   const [businessType, setBusinessType] = useState(initialType);
+
+  const [existingPlaceIds, setExistingPlaceIds] = useState<Set<string>>(new Set());
+  const [existingPhones, setExistingPhones] = useState<Set<string>>(new Set());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState('');
 
+  const loadExistingData = async () => {
+    try {
+      const [leadsData, convsData] = await Promise.all([
+        getLeads().catch(() => []),
+        getConversations().catch(() => [])
+      ]);
+
+      const placeIds = new Set<string>();
+      const phones = new Set<string>();
+
+      if (Array.isArray(leadsData)) {
+        leadsData.forEach((l: any) => {
+          if (l.placeId) placeIds.add(l.placeId);
+          if (l.phone) {
+            const clean = String(l.phone).replace(/\D/g, '');
+            if (clean) phones.add(clean);
+          }
+        });
+      }
+
+      if (Array.isArray(convsData)) {
+        convsData.forEach((c: any) => {
+          if (c.phone) {
+            const clean = String(c.phone).replace(/\D/g, '');
+            if (clean) phones.add(clean);
+          }
+        });
+      }
+
+      setExistingPlaceIds(placeIds);
+      setExistingPhones(phones);
+    } catch (err) {
+      console.error('Erro ao carregar leads/conversas existentes:', err);
+    }
+  };
+
   useEffect(() => {
     if (initialType) setBusinessType(initialType);
+    loadExistingData();
   }, [initialType]);
 
   const showToast = (msg: string) => {
@@ -42,6 +83,8 @@ const Prospector = () => {
     setSelectedIds([]);
     setCurrentPage(pageNum);
     setLastSearchParams(params);
+
+    await loadExistingData();
 
     try {
       const geo = await geocodeLocation(params.query).catch(() => ({ latitude: -16.6869, longitude: -49.2648 }));
@@ -103,11 +146,23 @@ const Prospector = () => {
     }
   };
 
-  const filteredResults = results.filter(lead => {
-    if (noWebsite && lead.hasWebsite) return false;
-    if (hasPhone && (!lead.phone || lead.phone === 'Sem telefone')) return false;
-    return true;
-  });
+  const filteredResults = useMemo(() => {
+    return results.filter(lead => {
+      if (noWebsite && lead.hasWebsite) return false;
+      if (hasPhone && (!lead.phone || lead.phone === 'Sem telefone')) return false;
+
+      // Ocultar empresas que já foram salvas ou contatadas no sistema
+      if (hideAlreadyContacted) {
+        const cleanPhone = lead.phone ? String(lead.phone).replace(/\D/g, '') : '';
+        const isPlaceSaved = lead.placeId && existingPlaceIds.has(lead.placeId);
+        const isPhoneSaved = cleanPhone && existingPhones.has(cleanPhone);
+
+        if (isPlaceSaved || isPhoneSaved) return false;
+      }
+
+      return true;
+    });
+  }, [results, noWebsite, hasPhone, hideAlreadyContacted, existingPlaceIds, existingPhones]);
 
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds(prev => checked ? [...prev, id] : prev.filter(item => item !== id));
@@ -122,13 +177,13 @@ const Prospector = () => {
     await saveLeads(selectedLeads).catch(() => {});
     showToast(`${selectedIds.length} empresa${selectedIds.length > 1 ? 's' : ''} salva${selectedIds.length > 1 ? 's' : ''} com sucesso!`);
     setSelectedIds([]);
+    await loadExistingData();
   };
 
   const handleCampaignSend = async (name: string, msg: string) => {
     try {
       const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
 
-      // Monta payload completo com todos os dados necessários para o backend
       const leadsPayload = selectedLeads.map(r => ({
         name: r.name,
         address: r.address || '',
@@ -142,7 +197,6 @@ const Prospector = () => {
         status: 'novo'
       }));
 
-      // Dispara a campanha via backend com os dados completos
       await sendWhatsApp({
         leadIds: [],
         leads: leadsPayload,
@@ -152,6 +206,7 @@ const Prospector = () => {
 
       showToast(`Campanha "${name}" enviada! Acompanhe no Chat/CRM.`);
       setSelectedIds([]);
+      await loadExistingData();
     } catch (e: any) {
       showToast('Erro ao disparar campanha: ' + (e.message || 'Falha na conexão'));
     }
@@ -167,9 +222,9 @@ const Prospector = () => {
       )}
 
       <div className="page-header" style={{ paddingBottom: 20 }}>
-        <div className="page-eyebrow"><Sparkles size={12} /> Prospecção</div>
-        <h1 className="page-title">Buscar Empresas</h1>
-        <p className="page-subtitle">Encontre empresas sem site no Google Maps por cidade e nicho.</p>
+        <div className="page-eyebrow"><Sparkles size={12} /> Prospecção Limpa</div>
+        <h1 className="page-title">Buscar Empresas Inéditas</h1>
+        <p className="page-subtitle">Encontre novas empresas sem site no Google Maps. Ocultamos automaticamente quem você já contatou.</p>
       </div>
 
       <div style={{ padding: '0 32px 32px' }}>
@@ -182,6 +237,7 @@ const Prospector = () => {
               minRating={minRating} setMinRating={setMinRating}
               noWebsite={noWebsite} setNoWebsite={setNoWebsite}
               hasPhone={hasPhone} setHasPhone={setHasPhone}
+              hideAlreadyContacted={hideAlreadyContacted} setHideAlreadyContacted={setHideAlreadyContacted}
               businessType={businessType} setBusinessType={setBusinessType}
               resultCount={filteredResults.length}
             />
@@ -195,7 +251,7 @@ const Prospector = () => {
                   onChange={toggleSelectAll}
                   style={{ width: 15, height: 15, accentColor: 'var(--green)', cursor: 'pointer' }}
                 />
-                Selecionar todos os {filteredResults.length} resultados (Página {currentPage})
+                Selecionar todos os {filteredResults.length} resultados novos (Página {currentPage})
               </label>
               {selectedIds.length > 0 && (
                 <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>
@@ -240,8 +296,10 @@ const Prospector = () => {
             ) : (
               <div style={{ textAlign: 'center', padding: '48px 20px', background: 'var(--bg-3)', borderRadius: 14, border: '1px solid var(--border)' }}>
                 <Search size={32} style={{ margin: '0 auto 12px', color: 'var(--text-3)', opacity: 0.4 }} />
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Nenhum resultado com esses filtros</p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)' }}>Tente desmarcar "Sem website" ou trocar a cidade selecionada.</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Nenhum resultado novo nesta busca</p>
+                <p style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  As empresas desta região/página já estão salvas no seu CRM, ou tente trocar o nicho/cidade.
+                </p>
               </div>
             )}
           </div>
