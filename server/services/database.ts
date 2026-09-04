@@ -363,7 +363,11 @@ export const dbService = {
     const leads = await dbService.getAllLeads();
     return (rows as any[]).map((conv: any) => {
       const cleanConvPhone = String(conv.phone).replace(/\D/g, '');
-      const match = leads.find(l => l.phone && String(l.phone).replace(/\D/g, '') === cleanConvPhone);
+      const match = leads.find(l => {
+        if (!l.phone) return false;
+        const lp = String(l.phone).replace(/\D/g, '');
+        return lp === cleanConvPhone || (lp.length >= 8 && cleanConvPhone.length >= 8 && (lp.endsWith(cleanConvPhone) || cleanConvPhone.endsWith(lp)));
+      });
       return {
         ...conv,
         leadId: match?.id || null,
@@ -373,16 +377,32 @@ export const dbService = {
     });
   },
 
-  updateLeadStatusByPhone: async (phone: string, status: string) => {
+  updateLeadStatusByPhone: async (phone: string, status: string, contactName?: string) => {
     await ensureInit();
     const cleanPhone = phone.replace(/\D/g, '');
     const leads = await dbService.getAllLeads();
-    const lead = leads.find(l => l.phone && l.phone.replace(/\D/g, '') === cleanPhone);
+    let lead = leads.find(l => {
+      if (!l.phone) return false;
+      const lp = String(l.phone).replace(/\D/g, '');
+      return lp === cleanPhone || (lp.length >= 8 && cleanPhone.length >= 8 && (lp.endsWith(cleanPhone) || cleanPhone.endsWith(lp)));
+    });
+
     if (lead && lead.id) {
       await dbService.updateLead(lead.id, { status });
       return { success: true, leadId: lead.id, status };
     }
-    return { success: false, message: 'Lead não encontrado para este telefone' };
+
+    // Se o lead ainda não existia na tabela de leads, cria automaticamente para salvar a categoria para sempre
+    const name = contactName || `Contato ${cleanPhone}`;
+    const newLeadId = await dbService.createLead({
+      name,
+      address: 'WhatsApp Direct Chat',
+      phone: cleanPhone,
+      placeId: `chat_${cleanPhone}_${Date.now()}`,
+      status: status
+    });
+
+    return { success: true, leadId: newLeadId, status };
   },
 
   getChatMessagesByPhone: async (phone: string) => {

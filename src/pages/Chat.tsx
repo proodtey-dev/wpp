@@ -189,9 +189,10 @@ const Chat = () => {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!selectedPhone) return;
+    const currentConv = conversations.find(c => c.phone === selectedPhone);
     setConversations(prev => prev.map(c => c.phone === selectedPhone ? { ...c, leadStatus: newStatus } : c));
     try {
-      await updateLeadStatusByPhone(selectedPhone, newStatus);
+      await updateLeadStatusByPhone(selectedPhone, newStatus, currentConv?.leadName || currentConv?.contactName);
     } catch (err) {
       console.error('Erro ao atualizar status do lead:', err);
     }

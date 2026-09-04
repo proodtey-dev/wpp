@@ -277,12 +277,12 @@ router.post('/send', async (req, res) => {
 // Update lead status by phone number
 router.post('/lead-status', async (req: Request, res: Response) => {
   try {
-    const { phone, status } = req.body;
+    const { phone, status, contactName } = req.body;
     if (!phone || !status) {
       return res.status(400).json({ error: 'phone e status são obrigatórios' });
     }
 
-    const result = await dbService.updateLeadStatusByPhone(phone, status);
+    const result = await dbService.updateLeadStatusByPhone(phone, status, contactName);
     if (result.success) {
       broadcastToSSE('lead_status_updated', {
         phone,

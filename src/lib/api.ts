@@ -106,11 +106,11 @@ export async function sendChatAudioMessage(data: { phone: string; audioBase64: s
   }).then(r => r.json());
 }
 
-export async function updateLeadStatusByPhone(phone: string, status: string) {
+export async function updateLeadStatusByPhone(phone: string, status: string, contactName?: string) {
   return fetch(`${API_BASE}/chat/lead-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, status })
+    body: JSON.stringify({ phone, status, contactName })
   }).then(r => r.json());
 }
 
