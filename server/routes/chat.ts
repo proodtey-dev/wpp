@@ -315,13 +315,9 @@ router.post('/send-audio', async (req: Request, res: Response) => {
     const cleanBase64 = audioBase64.replace(/^data:audio\/[a-zA-Z0-9-+.]+;base64,/, '');
     const buffer = Buffer.from(cleanBase64, 'base64');
     
-    // Meta API requer tipos de áudio suportados: audio/mp4, audio/aac, audio/mpeg, audio/ogg
-    let audioMime = mimeType || 'audio/mp4';
-    if (audioMime.includes('webm')) {
-      audioMime = 'audio/mp4';
-    }
-    const ext = audioMime.includes('ogg') ? 'ogg' : audioMime.includes('aac') ? 'aac' : 'mp4';
-    const filename = `voice_${Date.now()}.${ext}`;
+    // Garantir envio como áudio/mpeg (MP3) compatível 100% com Meta WhatsApp API
+    const audioMime = 'audio/mpeg';
+    const filename = `voice_${Date.now()}.mp3`;
 
     const mediaId = await whatsappService.uploadMedia(buffer, audioMime, filename, {
       token,

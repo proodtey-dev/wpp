@@ -7,6 +7,7 @@ import {
   getConversations, getChatMessages, sendChatMessage, sendChatAudioMessage,
   updateLeadStatusByPhone, CRM_STAGES
 } from '../lib/api';
+import { convertBlobToMp3 } from '../lib/mp3Encoder';
 
 const API_BASE = '/api';
 
@@ -296,25 +297,31 @@ const Chat = () => {
 
     recorder.onstop = async () => {
       recorder.stream.getTracks().forEach(track => track.stop());
-      const mimeType = recorder.mimeType || 'audio/mp4';
-      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      const rawBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
 
       setIsRecording(false);
       setRecordingTime(0);
 
-      if (audioBlob.size < 500) {
+      if (rawBlob.size < 500) {
         return; // Áudio muito curto
       }
 
       setSending(true);
       const currentConv = conversations.find(c => c.phone === selectedPhone);
 
-      // Converte Blob para base64
+      // Converte qualquer formato gravado pelo navegador em MP3 oficial aceito pelo WhatsApp Meta API
+      let finalBlob: Blob = rawBlob;
+      try {
+        finalBlob = await convertBlobToMp3(rawBlob);
+      } catch (err) {
+        console.warn('Erro ao converter para MP3 (usando fallback rawBlob):', err);
+      }
+
       const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
+      reader.readAsDataURL(finalBlob);
       reader.onloadend = async () => {
         const audioBase64 = reader.result as string;
-        const localAudioUrl = URL.createObjectURL(audioBlob);
+        const localAudioUrl = URL.createObjectURL(finalBlob);
 
         const tempId = Date.now();
         const tempMsg = {
