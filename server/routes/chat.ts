@@ -296,6 +296,70 @@ router.post('/lead-status', async (req: Request, res: Response) => {
   }
 });
 
+// Send an audio recording in chat
+router.post('/send-audio', async (req: Request, res: Response) => {
+  try {
+    const { phone, audioBase64, mimeType, contactName } = req.body;
+    if (!phone || !audioBase64) {
+      return res.status(400).json({ error: 'phone e audioBase64 são obrigatórios' });
+    }
+
+    const settings = await dbService.getSettings();
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!token || !phoneNumberId) {
+      return res.status(400).json({ error: 'WhatsApp API não configurada' });
+    }
+
+    const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    const audioMime = mimeType || 'audio/mp4';
+    const ext = audioMime.includes('ogg') ? 'ogg' : audioMime.includes('webm') ? 'webm' : 'mp4';
+
+    const mediaId = await whatsappService.uploadMedia(buffer, audioMime, `voice_${Date.now()}.${ext}`, {
+      token,
+      phoneNumberId
+    });
+
+    const waResult = await whatsappService.sendAudioMessage(phone, mediaId, {
+      token,
+      phoneNumberId
+    });
+
+    const deliveryStatus = waResult.success ? 'sent' : 'failed';
+    const mediaUrl = `/api/chat/media/${mediaId}`;
+
+    await dbService.saveChatMessage({
+      phone,
+      contactName,
+      sender: 'me',
+      body: '🎵 Áudio de voz',
+      waMessageId: waResult.messageId,
+      deliveryStatus,
+      mediaUrl,
+      mediaType: 'audio'
+    });
+
+    broadcastToSSE('new_message', {
+      phone,
+      contactName,
+      sender: 'me',
+      body: '🎵 Áudio de voz',
+      mediaUrl,
+      mediaType: 'audio',
+      timestamp: new Date().toISOString(),
+      deliveryStatus,
+      waMessageId: waResult.messageId
+    });
+
+    res.json({ success: true, result: waResult, mediaUrl, mediaId, deliveryStatus });
+  } catch (e: any) {
+    console.error('Erro ao enviar áudio no chat:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Proxy de Mídia do WhatsApp (imagens, figurinhas, áudios, vídeos, documentos)
 router.get('/media/:mediaId', async (req: Request, res: Response) => {
   try {

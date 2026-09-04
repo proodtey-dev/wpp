@@ -148,5 +148,75 @@ export const whatsappService = {
     } catch (error: any) {
       return { success: false, error: error.message };
     }
+  },
+
+  uploadMedia: async (buffer: Buffer, mimeType: string, filename: string, config: WhatsAppConfig) => {
+    const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
+    const token = config.token || process.env.WHATSAPP_TOKEN;
+
+    const formData = new FormData();
+    formData.append('messaging_product', 'whatsapp');
+    formData.append('type', mimeType);
+    formData.append('file', new Blob([buffer], { type: mimeType }), filename);
+
+    const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    const data = await response.json() as any;
+    if (!response.ok) {
+      console.error('Erro ao subir mídia no WhatsApp:', data);
+      throw new Error(data.error?.message || 'Erro ao subir arquivo de mídia na Meta API');
+    }
+    return data.id as string;
+  },
+
+  sendAudioMessage: async (to: string, mediaId: string, config: WhatsAppConfig) => {
+    let formattedTo = to.replace(/\D/g, '');
+    if (formattedTo.length === 10 || formattedTo.length === 11) {
+      formattedTo = '55' + formattedTo;
+    }
+
+    const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
+    const token = config.token || process.env.WHATSAPP_TOKEN;
+
+    const doSend = async (targetPhone: string) => {
+      console.log(`📤 Enviando mensagem de áudio via Meta API para ${targetPhone}...`);
+      const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: targetPhone,
+          type: 'audio',
+          audio: { id: mediaId }
+        })
+      });
+      const data = await response.json() as any;
+      return { ok: response.ok, data };
+    };
+
+    try {
+      let res = await doSend(formattedTo);
+      if (!res.ok && formattedTo.startsWith('55') && formattedTo.length === 12) {
+        const altPhone = formattedTo.slice(0, 4) + '9' + formattedTo.slice(4);
+        res = await doSend(altPhone);
+      }
+      if (!res.ok) {
+        console.error('❌ Erro no envio de áudio:', res.data);
+        return { success: false, error: res.data.error?.message || 'Erro ao enviar áudio' };
+      }
+      return { success: true, messageId: res.data.messages?.[0]?.id };
+    } catch (error: any) {
+      console.error('Erro no envio de áudio no WhatsApp:', error);
+      return { success: false, error: error.message };
+    }
   }
 };

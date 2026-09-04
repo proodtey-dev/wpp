@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Search, Phone, Zap, CheckCheck, Check, X,
-  Clock, RefreshCw, ArrowLeft, Tag
+  Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2
 } from 'lucide-react';
 import {
-  getConversations, getChatMessages, sendChatMessage,
+  getConversations, getChatMessages, sendChatMessage, sendChatAudioMessage,
   updateLeadStatusByPhone, CRM_STAGES
 } from '../lib/api';
 
@@ -28,6 +28,12 @@ const formatTime = (ts: string) => {
   try {
     return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   } catch { return ''; }
+};
+
+const formatSeconds = (sec: number) => {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
 const playNotificationSound = () => {
@@ -67,6 +73,14 @@ const Chat = () => {
   const [loading, setLoading] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+  // Voice recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const selectedPhoneRef = useRef<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -223,6 +237,119 @@ const Chat = () => {
     }
   };
 
+  // 🎙️ Voice Recording Functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Erro ao acessar o microfone:', err);
+      alert('Permissão de microfone negada ou indisponível.');
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stop();
+    }
+    clearInterval(recordingTimerRef.current);
+    setIsRecording(false);
+    setRecordingTime(0);
+    audioChunksRef.current = [];
+  };
+
+  const stopAndSendRecording = async () => {
+    if (!mediaRecorderRef.current || !selectedPhone || sending) return;
+
+    clearInterval(recordingTimerRef.current);
+    const recorder = mediaRecorderRef.current;
+
+    recorder.onstop = async () => {
+      recorder.stream.getTracks().forEach(track => track.stop());
+      const mimeType = recorder.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+      setIsRecording(false);
+      setRecordingTime(0);
+
+      if (audioBlob.size < 500) {
+        return; // Áudio muito curto
+      }
+
+      setSending(true);
+      const currentConv = conversations.find(c => c.phone === selectedPhone);
+
+      // Converte Blob para base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const audioBase64 = reader.result as string;
+        const localAudioUrl = URL.createObjectURL(audioBlob);
+
+        const tempId = Date.now();
+        const tempMsg = {
+          id: tempId,
+          phone: selectedPhone,
+          sender: 'me',
+          body: '🎵 Áudio de voz',
+          mediaUrl: localAudioUrl,
+          mediaType: 'audio',
+          deliveryStatus: 'sending',
+          timestamp: new Date().toISOString(),
+        };
+
+        setMessages(prev => [...prev, tempMsg]);
+        setTimeout(scrollToBottom, 50);
+
+        try {
+          const res = await sendChatAudioMessage({
+            phone: selectedPhone,
+            audioBase64,
+            mimeType,
+            contactName: currentConv?.contactName
+          });
+
+          setMessages(prev => prev.map(m =>
+            m.id === tempId
+              ? { ...m, deliveryStatus: res.deliveryStatus || 'sent', mediaUrl: res.mediaUrl || localAudioUrl }
+              : m
+          ));
+
+          setConversations(prev => prev.map(c =>
+            c.phone === selectedPhone
+              ? { ...c, lastMessage: '🎵 Áudio de voz', timestamp: new Date().toISOString() }
+              : c
+          ));
+        } catch (err) {
+          console.error('Erro ao enviar áudio:', err);
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...m, deliveryStatus: 'failed' } : m));
+        } finally {
+          setSending(false);
+        }
+      };
+    };
+
+    recorder.stop();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -244,6 +371,7 @@ const Chat = () => {
   });
 
   const handleSelectConv = (phone: string) => {
+    if (isRecording) cancelRecording();
     setSelectedPhone(phone);
     setMobileView('chat');
   };
@@ -435,7 +563,7 @@ const Chat = () => {
                     <div className={`message-bubble ${isMe ? 'me' : 'user'}`}>
                       <div>{msg.body}</div>
 
-                      {/* Mídia e anexos */}
+                      {/* Renderização de mídias e áudio player */}
                       {msg.mediaUrl && msg.mediaType === 'image' && (
                         <img
                           src={msg.mediaUrl}
@@ -531,26 +659,58 @@ const Chat = () => {
             ))}
           </div>
 
-          {/* Input */}
+          {/* Input & Voice Recorder Bar */}
           <div className="chat-input-bar">
-            <input
-              className="input"
-              style={{ flex: 1, fontSize: 13 }}
-              type="text"
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Digite sua resposta… (Enter para enviar)"
-            />
-            <button
-              className="btn btn-primary"
-              onClick={() => handleSend()}
-              disabled={!inputText.trim() || sending}
-              style={{ padding: '8px 14px' }}
-            >
-              <Send size={14} />
-              {sending ? 'Enviando…' : 'Enviar'}
-            </button>
+            {isRecording ? (
+              /* Interface durante a gravação de áudio */
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '6px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#ef4444', fontWeight: 600, fontSize: 13 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+                  <span>Gravando áudio: {formatSeconds(recordingTime)}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={cancelRecording} style={{ color: 'var(--text-2)' }}>
+                    <Trash2 size={14} /> Cancelar
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={stopAndSendRecording} disabled={sending}>
+                    <Send size={14} /> Enviar Áudio
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Interface padrão de digitação de texto + Botão de Microfone */
+              <>
+                <input
+                  className="input"
+                  style={{ flex: 1, fontSize: 13 }}
+                  type="text"
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Digite sua resposta… (Enter para enviar)"
+                />
+                
+                {/* Botão de Gravar Áudio */}
+                <button
+                  className="btn btn-secondary"
+                  onClick={startRecording}
+                  title="Gravar Mensagem de Áudio"
+                  style={{ padding: '8px 12px', background: 'var(--bg-4)', borderColor: 'var(--border)' }}
+                >
+                  <Mic size={15} color="var(--green)" />
+                </button>
+
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleSend()}
+                  disabled={!inputText.trim() || sending}
+                  style={{ padding: '8px 14px' }}
+                >
+                  <Send size={14} />
+                  {sending ? 'Enviando…' : 'Enviar'}
+                </button>
+              </>
+            )}
           </div>
           </>
         ) : (
@@ -558,7 +718,7 @@ const Chat = () => {
             <MessageSquare size={44} style={{ opacity: 0.15 }} />
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center' }}>Caixa de Entrada & CRM</p>
-              <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar e mudar a categoria do lead</p>
+              <p style={{ fontSize: 12, marginTop: 4, textAlign: 'center' }}>Selecione uma conversa para visualizar, gravar áudios e mudar categorias</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 8 }}>
               <span className="online-dot" style={{ background: sseConnected ? 'var(--green)' : '#f59e0b' }} />
