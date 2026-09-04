@@ -154,10 +154,15 @@ export const whatsappService = {
     const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
     const token = config.token || process.env.WHATSAPP_TOKEN;
 
+    // Meta API requer que o campo 'type' seja uma das strings literais: 'audio', 'image', 'document', 'video', 'sticker'
+    const mediaTypeCategory = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : 'audio';
+
     const formData = new FormData();
     formData.append('messaging_product', 'whatsapp');
-    formData.append('type', mimeType);
+    formData.append('type', mediaTypeCategory);
     formData.append('file', new Blob([buffer], { type: mimeType }), filename);
+
+    console.log(`📤 Subindo arquivo para Meta API: filename=${filename}, category=${mediaTypeCategory}, mime=${mimeType}, size=${buffer.length} bytes...`);
 
     const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
       method: 'POST',
@@ -169,9 +174,10 @@ export const whatsappService = {
 
     const data = await response.json() as any;
     if (!response.ok) {
-      console.error('Erro ao subir mídia no WhatsApp:', data);
-      throw new Error(data.error?.message || 'Erro ao subir arquivo de mídia na Meta API');
+      console.error('❌ Erro no upload de mídia na Meta API:', JSON.stringify(data, null, 2));
+      throw new Error(data.error?.message || data.error?.error_data?.details || 'Erro ao subir arquivo de mídia na Meta API');
     }
+    console.log('✅ Upload de mídia concluído na Meta API! mediaId:', data.id);
     return data.id as string;
   },
 

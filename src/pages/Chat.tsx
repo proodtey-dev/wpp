@@ -238,12 +238,24 @@ const Chat = () => {
   };
 
   // 🎙️ Voice Recording Functions
+  const getSupportedMimeType = () => {
+    if (typeof MediaRecorder === 'undefined') return '';
+    if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+    if (MediaRecorder.isTypeSupported('audio/aac')) return 'audio/aac';
+    if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) return 'audio/ogg;codecs=opus';
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+    if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+    return '';
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -259,9 +271,9 @@ const Chat = () => {
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao acessar o microfone:', err);
-      alert('Permissão de microfone negada ou indisponível.');
+      alert('Permissão de microfone negada ou indisponível no navegador: ' + (err.message || ''));
     }
   };
 
@@ -284,7 +296,7 @@ const Chat = () => {
 
     recorder.onstop = async () => {
       recorder.stream.getTracks().forEach(track => track.stop());
-      const mimeType = recorder.mimeType || 'audio/webm';
+      const mimeType = recorder.mimeType || 'audio/mp4';
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
       setIsRecording(false);
@@ -327,9 +339,13 @@ const Chat = () => {
             contactName: currentConv?.contactName
           });
 
+          if (!res.success) {
+            alert(`Aviso ao enviar áudio: ${res.error || 'Erro na Meta WhatsApp API'}`);
+          }
+
           setMessages(prev => prev.map(m =>
             m.id === tempId
-              ? { ...m, deliveryStatus: res.deliveryStatus || 'sent', mediaUrl: res.mediaUrl || localAudioUrl }
+              ? { ...m, deliveryStatus: res.deliveryStatus || (res.success ? 'sent' : 'failed'), mediaUrl: res.mediaUrl || localAudioUrl }
               : m
           ));
 
@@ -338,8 +354,9 @@ const Chat = () => {
               ? { ...c, lastMessage: '🎵 Áudio de voz', timestamp: new Date().toISOString() }
               : c
           ));
-        } catch (err) {
+        } catch (err: any) {
           console.error('Erro ao enviar áudio:', err);
+          alert('Erro na requisição de áudio: ' + (err.message || 'Falha de rede'));
           setMessages(prev => prev.map(m => m.id === tempId ? { ...m, deliveryStatus: 'failed' } : m));
         } finally {
           setSending(false);
