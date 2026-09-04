@@ -342,7 +342,7 @@ const Chat = () => {
           const res = await sendChatAudioMessage({
             phone: selectedPhone,
             audioBase64,
-            mimeType,
+            mimeType: finalBlob.type || 'audio/mpeg',
             contactName: currentConv?.contactName
           });
 
