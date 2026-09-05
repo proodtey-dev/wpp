@@ -180,7 +180,7 @@ const Prospector = () => {
     await loadExistingData();
   };
 
-  const handleCampaignSend = async (name: string, msg: string) => {
+  const handleCampaignSend = async (name: string, msg: string, templateName?: string) => {
     try {
       const selectedLeads = filteredResults.filter(r => selectedIds.includes(r.id));
 
@@ -193,7 +193,7 @@ const Prospector = () => {
         website: r.website || null,
         placeId: r.placeId || r.id,
         photoUrl: r.photoUrl || null,
-        category: r.category || r.type || 'Empresa',
+        category: r.category || r.type || businessType || 'Empresa',
         status: 'novo'
       }));
 
@@ -201,7 +201,8 @@ const Prospector = () => {
         leadIds: [],
         leads: leadsPayload,
         message: msg,
-        campaignName: name
+        campaignName: name,
+        templateName: templateName || 'auto'
       });
 
       showToast(`Campanha "${name}" enviada! Acompanhe no Chat/CRM.`);

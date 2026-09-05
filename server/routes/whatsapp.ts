@@ -5,9 +5,25 @@ import { broadcastToSSE } from './chat';
 
 const router = Router();
 
+// Helper para selecionar o template aprovado da Meta com base no nicho do lead
+function getTemplateForLead(lead: { name?: string; category?: string }, chosenTemplate?: string, defaultTemplate?: string): string {
+  if (chosenTemplate && chosenTemplate !== 'auto' && chosenTemplate !== '') {
+    return chosenTemplate;
+  }
+
+  const text = `${lead.category || ''} ${lead.name || ''}`.toLowerCase();
+
+  if (/arquit|engenha|reforma|interiores|projeto/.test(text)) return 'arquiteto';
+  if (/contab|contad|fiscal|tribut/.test(text)) return 'contabilidade';
+  if (/odonto|dentist|dente|ortodon|sorriso/.test(text)) return 'odonto';
+  if (/advoca|advogad|jurid|direito|oab|leis/.test(text)) return 'advocacia';
+
+  return defaultTemplate || 'arquiteto';
+}
+
 router.post('/send', async (req, res) => {
   try {
-    const { leadIds, leads: rawLeads, message, campaignName } = req.body;
+    const { leadIds, leads: rawLeads, message, campaignName, templateName: requestedTemplate } = req.body;
     
     const settings = await dbService.getSettings();
     const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
@@ -19,7 +35,7 @@ router.post('/send', async (req, res) => {
 
     const campaignId = await dbService.createCampaign({
       name: campaignName || 'Campanha sem nome',
-      templateName: '',
+      templateName: requestedTemplate || 'auto',
       message,
       totalLeads: Array.isArray(leadIds) ? leadIds.length : (Array.isArray(rawLeads) ? rawLeads.length : 1),
       sent: 0,
@@ -39,9 +55,9 @@ router.post('/send', async (req, res) => {
       console.log(`\n🚀 Campanha ${campaignId} iniciada. leadIds=${JSON.stringify(leadIds)}, rawLeads=${Array.isArray(rawLeads) ? rawLeads.length : 0}`);
 
       // Lista consolidada de alvos
-      const targets: Array<{ id?: number; name: string; phone: string }> = [];
+      const targets: Array<{ id?: number; name: string; phone: string; category?: string }> = [];
 
-      // Prioridade 1: usar rawLeads diretamente (já vêm com dados completos do frontend)
+      // Prioridade 1: usar rawLeads diretamente
       if (Array.isArray(rawLeads) && rawLeads.length > 0) {
         for (const r of rawLeads) {
           const phone = (r.phone || '').replace(/\D/g, '');
@@ -63,12 +79,11 @@ router.post('/send', async (req, res) => {
               category: r.category || 'Empresa',
               status: 'novo'
             });
-            // Se INSERT OR IGNORE retornou 0, busca o existente pelo placeId
             const finalId = savedId || (r.placeId ? (await dbService.getByPlaceId(r.placeId))?.id : undefined);
-            targets.push({ id: finalId, name: r.name, phone });
+            targets.push({ id: finalId, name: r.name, phone, category: r.category });
           } catch (e: any) {
             console.error(`❌ Erro ao salvar lead "${r.name}":`, e.message);
-            targets.push({ name: r.name, phone });
+            targets.push({ name: r.name, phone, category: r.category });
           }
         }
       } else if (Array.isArray(leadIds) && leadIds.length > 0) {
@@ -76,7 +91,7 @@ router.post('/send', async (req, res) => {
         for (const id of leadIds) {
           const lead = await dbService.getLeadById(Number(id));
           if (lead && lead.phone) {
-            targets.push({ id: lead.id, name: lead.name, phone: lead.phone });
+            targets.push({ id: lead.id, name: lead.name, phone: lead.phone, category: lead.category });
           } else {
             console.log(`⚠️ Lead ID ${id} não encontrado ou sem telefone.`);
           }
@@ -102,20 +117,14 @@ router.post('/send', async (req, res) => {
           });
 
           const text = message.replace(/{nome}/g, target.name);
+          const targetTemplate = getTemplateForLead(target, requestedTemplate, settings.defaultTemplateName);
 
-          let result;
-          const templateName = settings.defaultTemplateName || process.env.WHATSAPP_TEMPLATE_NAME || 'proposta_site_v1';
-          if (templateName) {
-            result = await whatsappService.sendTemplateMessage(target.phone, templateName, [target.name], {
-              token: token!,
-              phoneNumberId: phoneNumberId!
-            });
-          } else {
-            result = await whatsappService.sendTextMessage(target.phone, text, {
-              token: token!,
-              phoneNumberId: phoneNumberId!
-            });
-          }
+          console.log(`📤 Enviando template Meta "${targetTemplate}" para ${target.name} (${target.phone})...`);
+
+          const result = await whatsappService.sendTemplateMessage(target.phone, targetTemplate, [target.name], {
+            token: token!,
+            phoneNumberId: phoneNumberId!
+          });
 
           if (result.success) {
             sentCount++;

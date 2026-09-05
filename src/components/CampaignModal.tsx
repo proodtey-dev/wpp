@@ -7,12 +7,13 @@ interface CampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedLeads: any[];
-  onSend: (campaignName: string, message: string) => Promise<void>;
+  onSend: (campaignName: string, message: string, templateName?: string) => Promise<void>;
 }
 
 const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selectedLeads, onSend }) => {
   const [name, setName] = useState('Campanha Prospector - ' + new Date().toLocaleDateString('pt-BR'));
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [selectedTemplate, setSelectedTemplate] = useState('auto');
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -21,7 +22,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
     if (isLoading) return;
     setIsLoading(true);
     try {
-      await onSend(name, message);
+      await onSend(name, message, selectedTemplate);
       onClose();
     } catch (e) {
       console.error('Erro ao enviar modal:', e);
@@ -48,6 +49,22 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Send size={14} /> Enviando para {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selecionado{selectedLeads.length > 1 ? 's' : ''}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Template de Envio na Meta (WhatsApp)</label>
+              <select
+                className="input"
+                value={selectedTemplate}
+                onChange={e => setSelectedTemplate(e.target.value)}
+                style={{ fontSize: 12 }}
+              >
+                <option value="auto">⚡ Seleção Automática por Nicho (Recomendado)</option>
+                <option value="arquiteto">🏛️ arquiteto (Arquitetura, Engenharia, Reformas)</option>
+                <option value="contabilidade">📊 contabilidade (Escritórios Contábeis)</option>
+                <option value="odonto">🦷 odonto (Dentistas & Odontologia)</option>
+                <option value="advocacia">⚖️ advocacia (Advogados & Escritórios)</option>
+              </select>
             </div>
 
             <div className="form-group">
