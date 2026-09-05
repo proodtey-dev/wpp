@@ -14,6 +14,9 @@ const Settings = () => {
   const [showWa, setShowWa] = useState(false);
   const [waStatus, setWaStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [template, setTemplate] = useState(DEFAULT_MESSAGE);
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [aiTone, setAiTone] = useState('consultivo e focado em converter');
+  const [showAiKey, setShowAiKey] = useState(false);
   const [toast, setToast] = useState('');
   const [metaTemplates, setMetaTemplates] = useState<{name: string; status: string; language: string}[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -35,6 +38,8 @@ const Settings = () => {
         if (data.whatsappWabaId) setWabaId(data.whatsappWabaId);
         if (data.defaultMessage) setTemplate(data.defaultMessage);
         if (data.defaultTemplateName) setTemplateName(data.defaultTemplateName);
+        if (data.openaiApiKey) setOpenaiApiKey(data.openaiApiKey);
+        if (data.aiTone) setAiTone(data.aiTone);
       }
     }).catch(() => {});
 
@@ -102,7 +107,9 @@ const Settings = () => {
       whatsappPhoneNumberId: phoneId,
       whatsappWabaId: wabaId,
       defaultTemplateName: templateName,
-      defaultMessage: template
+      defaultMessage: template,
+      openaiApiKey,
+      aiTone
     }).catch(() => {});
     showToast('Configurações salvas com sucesso!');
   };
@@ -270,6 +277,57 @@ const Settings = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Agente de Inteligência por IA (Estilo Comp AI) */}
+        <SectionCard accent="#a855f7">
+          <SectionHeader
+            icon={<Zap size={18} style={{ color: '#a855f7' }} />}
+            iconBg="rgba(168,85,247,0.12)"
+            title="Agente de Inteligência e Prospecção por IA (Comp AI Style)"
+            subtitle="Geração de Pitches Personalizados e Copiloto de Vendas no Chat"
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Chave da API de IA (OpenAI / Groq)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="input"
+                  type={showAiKey ? 'text' : 'password'}
+                  value={openaiApiKey}
+                  onChange={e => setOpenaiApiKey(e.target.value)}
+                  placeholder="sk-... ou gsk_... (Deixe em branco para usar o gerador gratuito)"
+                  style={{ fontFamily: 'monospace', fontSize: 12, paddingRight: 36 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAiKey(!showAiKey)}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}
+                >
+                  {showAiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                Aceita chaves da OpenAI (sk-...) ou chaves gratúitas e ultra-rápidas da Groq (gsk_...).
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tom de Voz da IA para Abordagem</label>
+              <select
+                className="input"
+                value={aiTone}
+                onChange={e => setAiTone(e.target.value)}
+                style={{ fontSize: 13 }}
+              >
+                <option value="consultivo e focado em converter">🎯 Consultivo & Focado em Vendas (Recomendado)</option>
+                <option value="direto, curto e sem rodeios">⚡ Direto & Rápido</option>
+                <option value="amigável e informal">💬 Amigável & Informal</option>
+                <option value="formal e corporativo">💼 Formal & Corporativo</option>
+              </select>
             </div>
           </div>
         </SectionCard>

@@ -114,6 +114,22 @@ export async function updateLeadStatusByPhone(phone: string, status: string, con
   }).then(r => r.json());
 }
 
+export async function generateAIPitch(lead: any) {
+  return fetch(`${API_BASE}/ai/pitch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lead })
+  }).then(r => r.json());
+}
+
+export async function suggestAIChatReply(data: { contactName?: string; phone: string; messages: any[] }) {
+  return fetch(`${API_BASE}/ai/chat-suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
 export const CRM_STAGES = [
   { id: 'novo', label: 'Novo Lead', icon: '📥', color: 'badge-gray' },
   { id: 'contatado', label: 'Proposta Enviada', icon: '📩', color: 'badge-yellow' },

@@ -129,6 +129,8 @@ const DEFAULT_SETTINGS = {
   whatsappToken: '',
   whatsappPhoneNumberId: '',
   whatsappWabaId: '',
+  openaiApiKey: '',
+  aiTone: 'consultivo e focado em converter',
   defaultMessage: "Olá {nome}! Somos especialistas em criação de sites profissionais. Notamos que {nome} ainda não possui um site — gostaríamos de apresentar uma proposta que pode aumentar suas vendas. Posso te enviar mais detalhes?"
 };
 

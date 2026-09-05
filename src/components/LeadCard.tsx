@@ -62,7 +62,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
         <span>{formatPhone(lead.phone || 'Sem telefone')}</span>
       </div>
 
-      <div className="lead-card-footer">
+      <div className="lead-card-footer" style={{ gap: 6 }}>
         {/* Botão Ver no Maps */}
         <a
           href={mapsUrl}
@@ -70,10 +70,44 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
           rel="noopener noreferrer"
           className="btn btn-secondary btn-sm"
           title="Ver no Google Maps"
-          style={{ flexShrink: 0, paddingLeft: 10, paddingRight: 10 }}
+          style={{ flexShrink: 0, paddingLeft: 8, paddingRight: 8 }}
         >
           <Map size={12} />
         </a>
+
+        {/* Botão Pitch IA */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            const btn = e.currentTarget;
+            const originalText = btn.innerText;
+            btn.innerText = '✨ Criando…';
+            try {
+              const { generateAIPitch } = await import('../lib/api');
+              const res = await generateAIPitch(lead);
+              if (res.pitch) {
+                const pitchUrl = cleanPhone
+                  ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(res.pitch)}`
+                  : null;
+                if (pitchUrl) {
+                  window.open(pitchUrl, '_blank');
+                } else {
+                  await navigator.clipboard.writeText(res.pitch);
+                  alert(`✨ Pitch Gerado pela IA:\n\n${res.pitch}\n\n(Copiado para a área de transferência!)`);
+                }
+              }
+            } catch {
+              alert('Erro ao gerar pitch com IA.');
+            } finally {
+              btn.innerText = originalText;
+            }
+          }}
+          className="btn btn-secondary btn-sm"
+          style={{ background: 'rgba(168,85,247,0.12)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)', fontSize: 11, padding: '4px 8px' }}
+          title="Gerar Abordagem Única Personalizada por IA"
+        >
+          ✨ Pitch IA
+        </button>
 
         {waUrl ? (
           <a
@@ -81,17 +115,17 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, selected, onSelect, onSave, o
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"
-            style={{ flex: 1, justifyContent: 'center' }}
+            style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
           >
-            <MessageSquare size={12} /> Chamar no Wpp
+            <MessageSquare size={12} /> Chamar
           </a>
         ) : (
           <button
             onClick={onSend}
             className="btn btn-primary btn-sm"
-            style={{ flex: 1, justifyContent: 'center' }}
+            style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
           >
-            <MessageSquare size={12} /> Enviar Proposta
+            <MessageSquare size={12} /> Proposta
           </button>
         )}
       </div>

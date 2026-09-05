@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Search, Phone, Zap, CheckCheck, Check, X,
-  Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2
+  Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2, Sparkles
 } from 'lucide-react';
 import {
   getConversations, getChatMessages, sendChatMessage, sendChatAudioMessage,
-  updateLeadStatusByPhone, CRM_STAGES
+  updateLeadStatusByPhone, CRM_STAGES, suggestAIChatReply
 } from '../lib/api';
 import { convertBlobToMp3 } from '../lib/mp3Encoder';
 
@@ -75,6 +75,10 @@ const Chat = () => {
   const [sseConnected, setSseConnected] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
+  // AI Copilot states
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ texto: string; roteiroAudio: string } | null>(null);
+
   // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -87,6 +91,26 @@ const Chat = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   selectedPhoneRef.current = selectedPhone;
+
+  const handleSuggestAI = async () => {
+    if (!selectedPhone || messages.length === 0) return;
+    setAiSuggestLoading(true);
+    try {
+      const currentConv = conversations.find(c => c.phone === selectedPhone);
+      const res = await suggestAIChatReply({
+        phone: selectedPhone,
+        contactName: currentConv?.leadName || currentConv?.contactName,
+        messages
+      });
+      if (res.texto || res.roteiroAudio) {
+        setAiSuggestion({ texto: res.texto, roteiroAudio: res.roteiroAudio });
+      }
+    } catch (err) {
+      console.error('Erro ao sugerir resposta por IA:', err);
+    } finally {
+      setAiSuggestLoading(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -560,6 +584,17 @@ const Chat = () => {
                 </select>
               </div>
 
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleSuggestAI}
+                disabled={aiSuggestLoading}
+                style={{ background: 'rgba(168,85,247,0.12)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.25)', gap: 5 }}
+                title="Gerar sugestão de resposta e roteiro de áudio por IA"
+              >
+                <Sparkles size={13} style={{ animation: aiSuggestLoading ? 'spin 1s linear infinite' : 'none' }} />
+                {aiSuggestLoading ? 'Analisando…' : 'Copiloto IA'}
+              </button>
+
               <button className="btn btn-ghost btn-sm" onClick={() => loadMessages(selectedPhone)} title="Recarregar mensagens">
                 <RefreshCw size={13} />
               </button>
@@ -683,6 +718,57 @@ const Chat = () => {
               </button>
             ))}
           </div>
+
+          {/* Card de Sugestão de IA */}
+          {aiSuggestion && (
+            <div style={{
+              background: 'rgba(168,85,247,0.08)',
+              border: '1px solid rgba(168,85,247,0.25)',
+              borderRadius: 12,
+              padding: 12,
+              margin: '6px 16px 0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12, color: '#a855f7' }}>
+                  <Sparkles size={13} /> Sugestão do Copiloto de IA
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setAiSuggestion(null)} style={{ padding: 2, height: 'auto' }}>
+                  <X size={13} />
+                </button>
+              </div>
+
+              {aiSuggestion.texto && (
+                <div style={{ background: 'var(--bg-3)', padding: 8, borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>💬 Resposta em Texto:</div>
+                  <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.4 }}>{aiSuggestion.texto}</div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ marginTop: 6, fontSize: 10, padding: '3px 8px' }}
+                    onClick={() => {
+                      setInputText(aiSuggestion.texto);
+                      setAiSuggestion(null);
+                    }}
+                  >
+                    Usar esta resposta
+                  </button>
+                </div>
+              )}
+
+              {aiSuggestion.roteiroAudio && (
+                <div style={{ background: 'var(--bg-3)', padding: 8, borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Mic size={11} /> 🎙️ Roteiro para Mensagem de Áudio:
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                    "{aiSuggestion.roteiroAudio}"
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Input & Voice Recorder Bar */}
           <div className="chat-input-bar">
