@@ -45,6 +45,52 @@ Tenho uma proposta sem risco para você: eu crio a estrutura completa do site, t
 
 Posso criar o seu site sem compromisso?`;
 
+export const TEMPLATE_MESSAGES: Record<string, string> = {
+  contabilidade: `Olá {nome}, boa tarde, tudo bem?
+
+Percebi que você ainda não possui um site corporativo, e ter uma plataforma online transmite muito mais credibilidade para atrair empresas que buscam serviços de contabilidade.
+
+Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
+
+Caso queira, posso te mandar um exemplo de site na área de contabilidade que eu mesmo já fiz para você dar uma olhada?`,
+
+  odonto: `Olá {nome}, boa tarde, tudo bem?
+
+Percebi que a sua clínica ainda não possui um site profissional, e ter uma página moderna ajuda muito a atrair novos pacientes para agendar consultas pelo WhatsApp.
+
+Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
+
+Caso queira, posso te mandar um exemplo de site na área de odontologia que eu mesmo já fiz para você dar uma olhada?`,
+
+  advocacia: `Olá {nome}, boa tarde, tudo bem?
+
+Percebi que você ainda não possui um site profissional para o seu escritório, e ter uma presença online ajuda muito a trazer novos clientes que buscam por advogados no Google.
+
+Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
+
+Caso queira, posso te mandar um exemplo de site na área de advocacia que eu mesmo já fiz para você dar uma olhada?`,
+
+  arquiteto: `Olá {nome}, boa tarde, tudo bem?
+
+Percebi que você ainda não possui um site de portfólio, e ter uma página online ajuda muito a mostrar seus projetos finalizados e fechar novos orçamentos de alto valor.
+
+Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
+
+Caso queira, posso te mandar um exemplo de site na área de arquitetura e reformas que eu mesmo já fiz para você dar uma olhada?`
+};
+
+export function detectNicheTemplate(lead?: { name?: string; category?: string; type?: string }): string {
+  if (!lead) return 'arquiteto';
+  const text = `${lead.category || ''} ${lead.type || ''} ${lead.name || ''}`.toLowerCase();
+
+  if (/contab|contad|consultant|corporate_office|accounting|fiscal|tribut/.test(text)) return 'contabilidade';
+  if (/odonto|dentist|dente|ortodon|sorriso|clinic/.test(text)) return 'odonto';
+  if (/advoca|advogad|lawyer|jurid|direito|oab|leis/.test(text)) return 'advocacia';
+  if (/arquit|architect|engenha|reforma|interiores|projeto/.test(text)) return 'arquiteto';
+
+  return 'arquiteto';
+}
+
 export const DEMO_LEADS: any[] = [];
 
 // Mantém compatibilidade com código antigo

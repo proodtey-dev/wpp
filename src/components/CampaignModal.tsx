@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import WhatsAppPreview from './WhatsAppPreview';
-import { DEFAULT_MESSAGE } from '../lib/utils';
+import { DEFAULT_MESSAGE, TEMPLATE_MESSAGES, detectNicheTemplate } from '../lib/utils';
 
 interface CampaignModalProps {
   isOpen: boolean;
@@ -12,9 +12,31 @@ interface CampaignModalProps {
 
 const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selectedLeads, onSend }) => {
   const [name, setName] = useState('Campanha Prospector - ' + new Date().toLocaleDateString('pt-BR'));
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [selectedTemplate, setSelectedTemplate] = useState('auto');
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && selectedLeads.length > 0) {
+      const detected = detectNicheTemplate(selectedLeads[0]);
+      setSelectedTemplate(detected);
+      if (TEMPLATE_MESSAGES[detected]) {
+        setMessage(TEMPLATE_MESSAGES[detected]);
+      }
+    }
+  }, [isOpen, selectedLeads]);
+
+  const handleTemplateChange = (templateKey: string) => {
+    setSelectedTemplate(templateKey);
+    if (TEMPLATE_MESSAGES[templateKey]) {
+      setMessage(TEMPLATE_MESSAGES[templateKey]);
+    } else if (templateKey === 'auto' && selectedLeads.length > 0) {
+      const detected = detectNicheTemplate(selectedLeads[0]);
+      if (TEMPLATE_MESSAGES[detected]) {
+        setMessage(TEMPLATE_MESSAGES[detected]);
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -56,14 +78,14 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
               <select
                 className="input"
                 value={selectedTemplate}
-                onChange={e => setSelectedTemplate(e.target.value)}
+                onChange={e => handleTemplateChange(e.target.value)}
                 style={{ fontSize: 12 }}
               >
-                <option value="auto">⚡ Seleção Automática por Nicho (Recomendado)</option>
-                <option value="arquiteto">🏛️ arquiteto (Arquitetura, Engenharia, Reformas)</option>
                 <option value="contabilidade">📊 contabilidade (Escritórios Contábeis)</option>
                 <option value="odonto">🦷 odonto (Dentistas & Odontologia)</option>
                 <option value="advocacia">⚖️ advocacia (Advogados & Escritórios)</option>
+                <option value="arquiteto">🏛️ arquiteto (Arquitetura, Engenharia, Reformas)</option>
+                <option value="auto">⚡ Seleção Automática por Nicho</option>
               </select>
             </div>
 
