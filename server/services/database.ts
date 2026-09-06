@@ -375,6 +375,8 @@ export const dbService = {
         leadId: match?.id || null,
         leadStatus: match?.status || 'novo',
         leadName: match?.name || conv.contactName,
+        placeId: match?.placeId || null,
+        address: match?.address || null,
       };
     });
   },

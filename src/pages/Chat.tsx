@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Send, Search, Phone, Zap, CheckCheck, Check, X,
-  Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2, Sparkles
+  Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2, Sparkles, Map, MapPin
 } from 'lucide-react';
 import {
   getConversations, getChatMessages, sendChatMessage, sendChatAudioMessage,
@@ -91,6 +91,16 @@ const Chat = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   selectedPhoneRef.current = selectedPhone;
+
+  const getMapsUrl = () => {
+    const conv = conversations.find(c => c.phone === selectedPhone);
+    if (!conv) return 'https://www.google.com/maps';
+    if (conv.placeId && !conv.placeId.startsWith('chat_') && !conv.placeId.startsWith('gen-')) {
+      return `https://www.google.com/maps/place/?q=place_id:${conv.placeId}`;
+    }
+    const query = `${conv.leadName || conv.contactName || ''} ${conv.address || ''}`.trim();
+    return `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  };
 
   const handleSuggestAI = async () => {
     if (!selectedPhone || messages.length === 0) return;
@@ -567,8 +577,21 @@ const Chat = () => {
               </div>
             </div>
 
-            {/* CRM Stage Selector Pill */}
+            {/* CRM Stage Selector Pill + Botão Ver no Maps */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {/* Botão Ver no Google Maps */}
+              <a
+                href={getMapsUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary btn-sm"
+                title="Abrir página desta empresa no Google Maps"
+                style={{ background: 'var(--bg-3)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.25)', gap: 5, fontSize: 12, padding: '4px 10px' }}
+              >
+                <Map size={13} style={{ color: '#3b82f6' }} />
+                <span>Ver no Maps</span>
+              </a>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Tag size={12} color="var(--text-3)" />
                 <select
@@ -600,6 +623,7 @@ const Chat = () => {
               </button>
             </div>
           </div>
+        ) : (
 
           {/* Messages */}
           <div className="chat-messages">
