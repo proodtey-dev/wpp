@@ -13,6 +13,8 @@ function getTemplateForLead(lead: { name?: string; category?: string }, chosenTe
 
   const text = `${lead.category || ''} ${lead.name || ''}`.toLowerCase();
 
+  if (/hamburg|burguer|burger|lanche|lanchonete|snack/.test(text)) return 'hamburgueria';
+  if (/pizza|pizzaria|pizzas|massa/.test(text)) return 'pizzaria';
   if (/arquit|engenha|reforma|interiores|projeto/.test(text)) return 'arquiteto';
   if (/contab|contad|fiscal|tribut/.test(text)) return 'contabilidade';
   if (/odonto|dentist|dente|ortodon|sorriso/.test(text)) return 'odonto';

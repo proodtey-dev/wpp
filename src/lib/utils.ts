@@ -18,6 +18,8 @@ export function truncate(str: string, length: number) {
 
 // Nichos com alto valor e alta necessidade de site profissional
 export const NICHE_TYPES = [
+  { value: 'hamburgueria', label: 'Hamburgueria', emoji: '🍔', googleType: 'restaurant' },
+  { value: 'pizzaria', label: 'Pizzaria', emoji: '🍕', googleType: 'meal_delivery' },
   { value: 'dentist', label: 'Dentista', emoji: '🦷', googleType: 'dentist' },
   { value: 'lawyer', label: 'Advogado', emoji: '⚖️', googleType: 'lawyer' },
   { value: 'hair_care', label: 'Cabelereiro', emoji: '✂️', googleType: 'hair_care' },
@@ -46,6 +48,26 @@ Tenho uma proposta sem risco para você: eu crio a estrutura completa do site, t
 Posso criar o seu site sem compromisso?`;
 
 export const TEMPLATE_MESSAGES: Record<string, string> = {
+  hamburgueria: `Opa {nome}, tudo certo? 👋
+
+Boa tarde! Sou desenvolvedor web e crio sites modernos para hamburguerias e lanchonetes.
+
+Vi o perfil de vocês e tive uma ideia que combinaria muito com a marca.
+
+Montei um modelo de site mostrando como poderia ficar a empresa com uma aparência mais profissional e organizada.
+
+Posso te enviar?`,
+
+  pizzaria: `Opa {nome}, tudo certo? 👋
+
+Boa tarde! Sou desenvolvedor de sites e crio páginas modernas com cardápio para pizzarias e delivery.
+
+Vi o perfil de vocês e tive uma ideia excelente para apresentar os sabores e facilitar os pedidos dos seus clientes pelo WhatsApp.
+
+Montei um modelo de site mostrando como ficaria a sua pizzaria com uma estrutura mais profissional e organizada.
+
+Posso te enviar?`,
+
   contabilidade: `Olá {nome}, boa tarde, tudo bem?
 
 Percebi que você ainda não possui um site corporativo, e ter uma plataforma online transmite muito mais credibilidade para atrair empresas que buscam serviços de contabilidade.
@@ -83,6 +105,8 @@ export function detectNicheTemplate(lead?: { name?: string; category?: string; t
   if (!lead) return 'arquiteto';
   const text = `${lead.category || ''} ${lead.type || ''} ${lead.name || ''}`.toLowerCase();
 
+  if (/hamburg|burguer|burger|lanche|lanchonete|snack/.test(text)) return 'hamburgueria';
+  if (/pizza|pizzaria|pizzas|massa/.test(text)) return 'pizzaria';
   if (/contab|contad|consultant|corporate_office|accounting|fiscal|tribut/.test(text)) return 'contabilidade';
   if (/odonto|dentist|dente|ortodon|sorriso|clinic/.test(text)) return 'odonto';
   if (/advoca|advogad|lawyer|jurid|direito|oab|leis/.test(text)) return 'advocacia';
