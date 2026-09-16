@@ -143,15 +143,14 @@ export const whatsappService = {
                       });
                     }
                   }
-                  } else if (comp.type === 'BODY') {
-                    const bodyMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
-                    if (bodyMatches.length > 0) {
-                      console.log(`📝 Template BODY tem ${bodyMatches.length} variável(is): ${bodyMatches.join(', ')}`);
-                      components.push({
-                        type: 'body',
-                        parameters: bodyMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
-                      });
-                    }
+                } else if (comp.type === 'BODY') {
+                  const bodyMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
+                  if (bodyMatches.length > 0) {
+                    console.log(`📝 Template BODY tem ${bodyMatches.length} variável(is): ${bodyMatches.join(', ')}`);
+                    components.push({
+                      type: 'body',
+                      parameters: bodyMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
+                    });
                   }
                 }
               }
