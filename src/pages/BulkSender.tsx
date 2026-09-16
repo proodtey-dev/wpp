@@ -21,6 +21,8 @@ export default function BulkSender() {
   const [sentNumbers, setSentNumbers] = useState<string[]>([]);
   const [parsedList, setParsedList] = useState<{ original: string; formatted: string; isDuplicate: boolean; status: 'pending' | 'sent' }[]>([]);
   const [copied, setCopied] = useState(false);
+  const [templateName, setTemplateName] = useState('dorama');
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
 
   useEffect(() => {
     try {
@@ -29,6 +31,17 @@ export default function BulkSender() {
     } catch (e) {
       console.error(e);
     }
+
+    // Buscar templates aprovados na Meta API
+    fetch('/api/whatsapp/templates')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          const approved = data.data.filter((t: any) => t.status === 'APPROVED');
+          setMetaTemplates(approved);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const saveSentNumber = (num: string) => {
@@ -114,14 +127,14 @@ export default function BulkSender() {
         leadIds: [],
         leads: leadsPayload,
         message: DORAMA_TEMPLATE_TEXT,
-        campaignName: `Disparo Massa Dorama (${new Date().toLocaleDateString('pt-BR')})`,
-        templateName: 'dorama'
+        campaignName: `Disparo Massa (${templateName}) - ${new Date().toLocaleDateString('pt-BR')}`,
+        templateName: templateName
       });
 
       // Mark all sent
       newItems.forEach(item => saveSentNumber(item.formatted));
       setParsedList(prev => prev.map(item => ({ ...item, isDuplicate: true, status: 'sent' })));
-      alert(`Disparo enviado via API Meta com sucesso para ${newItems.length} números! Acompanhe no Chat/CRM.`);
+      alert(`Disparo iniciado via API Meta para ${newItems.length} números usando o template "${templateName}"! Acompanhe as confirmações em tempo real no Chat/CRM.`);
     } catch (e: any) {
       alert('Erro ao enviar disparo via API Meta: ' + (e?.message || 'Falha no servidor. Verifique suas credenciais da API Meta em Configurações.'));
     }
@@ -148,10 +161,36 @@ export default function BulkSender() {
           
           {/* Template Box */}
           <div className="card" style={{ background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="badge badge-green">Template Aprovado</span>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>🎬 Dorama</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="badge badge-green">Template Aprovado Meta</span>
+                
+                {metaTemplates.length > 0 ? (
+                  <select
+                    className="input"
+                    style={{ width: 'auto', padding: '4px 10px', fontSize: 13, height: 32 }}
+                    value={templateName}
+                    onChange={e => setTemplateName(e.target.value)}
+                  >
+                    {metaTemplates.map((t: any) => (
+                      <option key={t.id || t.name} value={t.name}>
+                        {t.name} ({t.language || 'pt_BR'})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Nome na Meta:</span>
+                    <input
+                      className="input"
+                      style={{ width: 140, padding: '4px 8px', fontSize: 12, height: 30, fontFamily: 'monospace' }}
+                      value={templateName}
+                      onChange={e => setTemplateName(e.target.value.trim())}
+                      placeholder="dorama"
+                      title="Digite o nome exato do Template como está aprovado no Gerenciador da Meta"
+                    />
+                  </div>
+                )}
               </div>
               <button className="btn btn-secondary btn-sm" onClick={handleCopyTemplate}>
                 {copied ? <Check size={14} color="var(--green)" /> : <Copy size={14} />}
