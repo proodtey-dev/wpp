@@ -53,13 +53,13 @@ export const whatsappService = {
                     if (comp.format === 'IMAGE') {
                       // Upload imagem para Meta Media API e usar o media_id (evita 403 Forbidden em links externos)
                       let imageMediaId: string | null = null;
+                      // Mapa de imagens conhecidas por template (configurável)
+                      const knownTemplateImages: Record<string, string> = {
+                        'dorama': 'https://scontent.whatsapp.net/v/t61.29466-34/534425744_1105583282424713_7959374178271364614_n.png?ccb=1-7&_nc_sid=8b1bef&_nc_eui2=AeETqLFZtSLEp716lZ2t5G0Y0qikM-Y2BknSqKQz5jYGSRAVE6pb8jZ3x8JtLb5TzU_KAwoK9bozqrjVbibY20OS&_nc_ohc=MOPYpOBVyTcQ7kNvwG9IWLd&_nc_oc=Adr-u4J5t3jM5duAyfNKsjsIDM88uJWhVIJ6RMMKNLJLd6npC_uvrQhp6zYfRH6Jh4WjIMCu8QMRs4gBQJu0PLTg&_nc_zt=3&_nc_ht=scontent.whatsapp.net&_nc_gid=gCj9SvpSQzSWiuwU3E2JhQ&_nc_ss=7b2a8&oh=01_Q5Aa5gG9_qw0mCc7kb4t80T8BrNbnZI7gxMb0ym8Yb4js_Bayw&oe=6AD23246',
+                      };
                       try {
-                        // Tentar usar a URL de exemplo do template
-                        let imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || '';
-                        if (!imgUrl) {
-                          // Gerar uma imagem PNG simples de 1x1 pixel como placeholder
-                          imgUrl = '';
-                        }
+                        // Tentar usar a URL de exemplo do template, depois o mapa de imagens conhecidas
+                        let imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || knownTemplateImages[templateName.toLowerCase()] || '';
 
                         if (imgUrl) {
                           console.log('🖼️ Baixando imagem do template para re-upload:', imgUrl);
