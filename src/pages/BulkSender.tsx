@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Send, Upload, CheckCircle2, AlertTriangle, Trash2, Copy, Check, Filter, Phone } from 'lucide-react';
+import { sendWhatsApp } from '../lib/api';
 
 const STORAGE_KEY = 'wpp_bulk_sent_numbers';
 
@@ -90,19 +91,38 @@ export default function BulkSender() {
     window.open(`https://wa.me/${formattedPhone}?text=${encoded}`, '_blank');
   };
 
-  const handleDispatchAllNew = () => {
+  const handleDispatchAllNew = async () => {
     const newItems = parsedList.filter(i => !i.isDuplicate);
     if (newItems.length === 0) return;
 
-    if (!confirm(`Abrir WhatsApp para ${newItems.length} novos números?\n(Ative a permissão de pop-ups no seu navegador caso não abra todos)`)) {
+    if (!confirm(`Enviar disparo oficial via API para ${newItems.length} números?`)) {
       return;
     }
 
-    newItems.forEach((item, index) => {
-      setTimeout(() => {
-        handleOpenWhatsApp(item.formatted);
-      }, index * 500);
-    });
+    try {
+      const leadsPayload = newItems.map(item => ({
+        name: 'Cliente',
+        address: '',
+        phone: item.formatted,
+        category: 'dorama',
+        status: 'novo'
+      }));
+
+      await sendWhatsApp({
+        leadIds: [],
+        leads: leadsPayload,
+        message: DORAMA_TEMPLATE_TEXT,
+        campaignName: `Disparo Massa Dorama (${new Date().toLocaleDateString('pt-BR')})`,
+        templateName: 'dorama'
+      });
+
+      // Mark all sent
+      newItems.forEach(item => saveSentNumber(item.formatted));
+      setParsedList(prev => prev.map(item => ({ ...item, isDuplicate: true, status: 'sent' })));
+      alert(`Disparo enviado via API Meta com sucesso para ${newItems.length} números! Acompanhe no Chat/CRM.`);
+    } catch (e: any) {
+      alert('Erro ao enviar disparo via API Meta: ' + (e?.message || 'Falha no servidor. Verifique suas credenciais da API Meta em Configurações.'));
+    }
   };
 
   const handleCopyTemplate = () => {
