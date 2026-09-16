@@ -72,9 +72,9 @@ export const whatsappService = {
                         console.log(`📁 Usando imagem local do template: ${foundPath}`);
                         const imgBuffer = fs.readFileSync(foundPath);
                         const mimeType = foundPath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-                        const uploadResult = await whatsappService.uploadMedia(imgBuffer, mimeType, path.basename(foundPath), { token: token!, phoneNumberId });
-                        if (uploadResult.success && uploadResult.mediaId) {
-                          imageMediaId = uploadResult.mediaId;
+                        const uploadedMediaId = await whatsappService.uploadMedia(imgBuffer, mimeType, path.basename(foundPath), { token: token!, phoneNumberId });
+                        if (uploadedMediaId) {
+                          imageMediaId = uploadedMediaId;
                           console.log('✅ Imagem local uploadada para Meta, mediaId:', imageMediaId);
                         }
                       }
@@ -86,9 +86,9 @@ export const whatsappService = {
                         const imgResp = await fetch(imgUrl);
                         if (imgResp.ok) {
                           const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
-                          const uploadResult = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
-                          if (uploadResult.success && uploadResult.mediaId) {
-                            imageMediaId = uploadResult.mediaId;
+                          const uploadedMediaId = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
+                          if (uploadedMediaId) {
+                            imageMediaId = uploadedMediaId;
                             console.log('✅ Imagem de exemplo uploadada para Meta, mediaId:', imageMediaId);
                           }
                         }
@@ -108,9 +108,9 @@ export const whatsappService = {
                           0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
                           0xAE, 0x42, 0x60, 0x82
                         ]);
-                        const uploadResult = await whatsappService.uploadMedia(pngHeader, 'image/png', 'placeholder.png', { token: token!, phoneNumberId });
-                        if (uploadResult.success && uploadResult.mediaId) {
-                          imageMediaId = uploadResult.mediaId;
+                        const uploadedMediaId = await whatsappService.uploadMedia(pngHeader, 'image/png', 'placeholder.png', { token: token!, phoneNumberId });
+                        if (uploadedMediaId) {
+                          imageMediaId = uploadedMediaId;
                         }
                       }
                     } catch (uploadErr: any) {
