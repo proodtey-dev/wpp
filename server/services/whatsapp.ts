@@ -50,16 +50,16 @@ export const whatsappService = {
         return { ok: response.ok, data };
       };
 
-      // Tentativa 1: Com parâmetros e idioma padrão
-      let res = await doFetch(buildPayload(true, langCode));
+      // 1ª Tentativa: Sem componentes (0 parâmetros) - Padrão para templates de texto fixo como Dorama
+      let res = await doFetch(buildPayload(false, langCode));
 
-      // Se falhar por causa de número de parâmetros ou formato, tenta sem componentes (sem parâmetros)
-      if (!res.ok && res.data.error?.code === 132000) {
-        console.log(`⚠️ Tentando template "${templateName}" sem parâmetros...`);
-        res = await doFetch(buildPayload(false, langCode));
+      // 2ª Tentativa: Se a Meta exigir parâmetros (erro 132000), tenta enviando os parâmetros
+      if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
+        console.log(`⚠️ Template "${templateName}" exige parâmetros. Tentando com componentes de texto...`);
+        res = await doFetch(buildPayload(true, langCode));
       }
 
-      // Se falhar e idioma for pt_BR, tenta com en_US (alguns templates padrão vêm em en_US)
+      // 3ª Tentativa: Se falhar e o idioma for pt_BR, tenta no idioma en_US
       if (!res.ok && langCode === 'pt_BR' && (res.data.error?.code === 132001 || res.data.error?.code === 100)) {
         console.log(`⚠️ Tentando template "${templateName}" no idioma en_US...`);
         res = await doFetch(buildPayload(false, 'en_US'));
