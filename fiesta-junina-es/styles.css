@@ -1,0 +1,20 @@
+@import url('assets/styles-Bhs5FXIS.css');
+
+/* Smooth scrolling on anchor link clicks */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Accordion Chevron Rotation Override */
+.faq-icon {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rotate-180 {
+  transform: rotate(180deg) !important;
+}
+
+/* Scroll reveal transition override defaults */
+[style*="opacity:0"] {
+  will-change: opacity, transform;
+}

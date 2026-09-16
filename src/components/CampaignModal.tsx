@@ -81,6 +81,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, selected
                 onChange={e => handleTemplateChange(e.target.value)}
                 style={{ fontSize: 12 }}
               >
+                <option value="dorama">🎬 dorama (Dorama, Conteúdo & Plataformas)</option>
                 <option value="hamburgueria">🍔 hamburgueria (Hamburguerias & Lanchonetes)</option>
                 <option value="pizzaria">🍕 pizzaria (Pizzarias & Delivery)</option>
                 <option value="contabilidade">📊 contabilidade (Escritórios Contábeis)</option>

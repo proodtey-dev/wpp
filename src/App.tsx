@@ -8,6 +8,7 @@ import Chat from './pages/Chat';
 import Leads from './pages/Leads';
 import Campaigns from './pages/Campaigns';
 import Settings from './pages/Settings';
+import BulkSender from './pages/BulkSender';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/bulk" element={<BulkSender />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

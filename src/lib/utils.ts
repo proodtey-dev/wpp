@@ -99,12 +99,22 @@ Percebi que você ainda não possui um site de portfólio, e ter uma página onl
 Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
 
 Caso queira, posso te mandar um exemplo de site na área de arquitetura e reformas que eu mesmo já fiz para você dar uma olhada?`
+  dorama: `Opa {nome}, tudo certo? 👋
+
+Boa tarde! Sou desenvolvedor web e crio sites modernos e plataformas exclusivas.
+
+Vi o perfil de vocês e preparei um modelo especial focado em alta conversão no estilo Dorama.
+
+Montei uma demonstração exclusiva para vocês verem como ficaria.
+
+Posso te enviar o link?`,
 };
 
 export function detectNicheTemplate(lead?: { name?: string; category?: string; type?: string }): string {
   if (!lead) return 'arquiteto';
   const text = `${lead.category || ''} ${lead.type || ''} ${lead.name || ''}`.toLowerCase();
 
+  if (/dorama|drama|asiat|korea|corea|anime|geek/.test(text)) return 'dorama';
   if (/hamburg|burguer|burger|lanche|lanchonete|snack/.test(text)) return 'hamburgueria';
   if (/pizza|pizzaria|pizzas|massa/.test(text)) return 'pizzaria';
   if (/contab|contad|consultant|corporate_office|accounting|fiscal|tribut/.test(text)) return 'contabilidade';

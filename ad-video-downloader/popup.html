@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>AdSaver - Video Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <span class="sparkle">✦</span> AdSaver
+      </div>
+      <div class="subtitle">Detector de Vídeos de Anúncios</div>
+    </header>
+
+    <!-- Status Badge -->
+    <div class="status-container">
+      <div class="status-dot pulsing"></div>
+      <span id="status-text">Buscando vídeos na página...</span>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Video List Container -->
+    <main>
+      <div id="video-list" class="video-list">
+        <!-- Dynamic video cards loaded by JS -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon-wrapper">
+          <svg class="pulsing-slow" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+        <h3>Nenhum vídeo encontrado</h3>
+        <p>Acesse uma página com vídeos (como a Biblioteca de Anúncios) e inicie a reprodução para detectá-los automaticamente.</p>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-note">AdSaver v1.0.0 • Grátis e Ilimitado</div>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

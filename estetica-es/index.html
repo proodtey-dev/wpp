@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <script
+    src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+    data-utmify-prevent-xcod-sck
+    data-utmify-prevent-subids
+    async
+    defer
+  ></script>
+
+  <script>
+    window.pixelId = "6a28adb13aa0b2da2085fbe9";
+    var a = document.createElement("script");
+    a.setAttribute("async", "");
+    a.setAttribute("defer", "");
+    a.setAttribute("src", "https://cdn.utmify.com.br/scripts/pixel/pixel.js");
+    document.head.appendChild(a);
+  </script>
+
+  <title>Catálogo Profesional para Estética Automotriz</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --black2: #111111;
+      --black3: #1a1a1a;
+      --blue: #007BFF;
+      --blue-hot: #3399FF;
+      --blue-dark: #004C99;
+      --white: #f5f0e8;
+      --gray: #2a2a2a;
+      --gray-light: #888;
+      --red: #ff4444;
+      --gold: #d4af37;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: var(--blue);
+      text-align: center;
+      padding: 10px 20px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px 60px;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,123,255,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 80% 20%, rgba(51,153,255,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .bg-text-large {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(100px, 20vw, 280px);
+      color: rgba(0,123,255,0.04);
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
+      letter-spacing: -4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,123,255,0.12);
+      border: 1px solid rgba(0,123,255,0.3);
+      color: var(--blue-hot);
+      padding: 8px 20px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 32px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .badge span { font-size: 14px; }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(40px, 9vw, 90px);
+      line-height: 0.95;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+      animation: fadeUp 0.7s ease 0.1s both;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--blue);
+      display: block;
+    }
+
+    .hero p.sub {
+      font-size: clamp(14px, 2vw, 18px);
+      color: rgba(245,240,232,0.65);
+      max-width: 650px;
+      line-height: 1.65;
+      margin: 24px auto 48px;
+      font-weight: 400;
+      animation: fadeUp 0.7s ease 0.2s both;
+    }
+
+    /* ── HERO VISUALS ── */
+    .hero-visuals {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin: 0 auto 48px;
+      position: relative;
+      animation: fadeUp 0.8s ease 0.3s both;
+      gap: 40px;
+    }
+
+    .feed-image {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      z-index: 2;
+    }
+
+    .hero-carousel-wrapper {
+      width: 100%;
+      max-width: 100vw;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .swipe-hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-carousel {
+      display: flex;
+      width: 100%;
+      max-width: 800px;
+      gap: 16px;
+      padding: 20px 50%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .hero-carousel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .carousel-item {
+      flex: 0 0 65%;
+      max-width: 240px;
+      height: auto;
+      scroll-snap-align: center;
+      border-radius: 16px;
+      border: 2px solid rgba(0,123,255,0.2);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 1;
+      transform: scale(0.85);
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+    }
+
+    .carousel-item.active {
+      transform: scale(1);
+      border-color: var(--blue-hot);
+      box-shadow: 0 20px 50px rgba(0,123,255,0.4);
+      z-index: 3;
+    }
+
+    .glow-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60%; height: 60%;
+      background: rgba(0,123,255,0.2);
+      filter: blur(50px);
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .cta-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      animation: fadeUp 0.8s ease 0.4s both;
+    }
+
+    .btn-main {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: var(--blue);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 20px 48px;
+      border-radius: 16px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 0 0 rgba(0,123,255,0.4);
+      animation: pulse-blue 2.5s infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-main::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
+    }
+
+    .btn-main:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px rgba(0,123,255,0.4);
+      background: var(--blue-hot);
+    }
+
+    .btn-small {
+      font-size: 11px;
+      color: rgba(245,240,232,0.4);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how-it-works {
+      padding: 100px 24px;
+      background: var(--black2);
+      text-align: center;
+      position: relative;
+    }
+
+    .how-it-works::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,123,255,0.2), transparent);
+    }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      max-width: 1000px;
+      margin: 60px auto 0;
+    }
+
+    .step-card {
+      background: var(--black3);
+      border: 1px solid rgba(0,123,255,0.1);
+      border-radius: 24px;
+      padding: 40px 24px;
+      position: relative;
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .step-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(0,123,255,0.3);
+    }
+
+    .step-number {
+      width: 60px;
+      height: 60px;
+      background: var(--blue);
+      color: var(--white);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 20px rgba(0,123,255,0.3);
+    }
+
+    .step-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--white);
+    }
+
+    .step-card p {
+      font-size: 14px;
+      color: rgba(245,240,232,0.6);
+      line-height: 1.6;
+    }
+
+    /* ── PAIN SECTION ── */
+    .pain-section {
+      background: var(--black2);
+      padding: 100px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pain-section::before {
+      content: '💎';
+      position: absolute;
+      font-size: 300px;
+      opacity: 0.03;
+      top: -40px; right: -60px;
+      pointer-events: none;
+    }
+
+    .pain-section h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 7vw, 72px);
+      color: var(--white);
+      margin-bottom: 40px;
+      line-height: 0.95;
+    }
+
+    .pain-list {
+      max-width: 600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: left;
+    }
+
+    .pain-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--black3);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(0,123,255,0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .pain-item:hover {
+      transform: translateY(-3px);
+      border-color: rgba(0,123,255,0.3);
+    }
+
+    .pain-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+      margin-top: -2px;
+    }
+
+    .pain-item p {
+      font-size: 15px;
+      color: rgba(255,255,255,0.9);
+      font-weight: 500;
+      line-height: 1.6;
+    }
+
+    /* ── PREVIEW (COMPARATIVO) ── */
+    .preview-section {
+      padding: 100px 24px;
+      text-align: center;
+      position: relative;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--blue-hot);
+      margin-bottom: 16px;
+      background: rgba(0,123,255,0.1);
+      padding: 6px 16px;
+      border-radius: 100px;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 7vw, 80px);
+      line-height: 0.95;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      color: rgba(245,240,232,0.6);
+      font-size: 16px;
+      max-width: 500px;
+      margin: 0 auto 64px;
+      line-height: 1.6;
+    }
+
+    /* ── COMPARISON GRID ── */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .comparison-card {
+      border-radius: 32px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .comparison-card:hover {
+      transform: translateY(-8px);
+    }
+
+    /* ── CARD AMATEUR ── */
+    .comparison-card.amador {
+      border: 2px solid rgba(255, 68, 68, 0.4);
+      background: linear-gradient(135deg, #1a0a0a 0%, var(--black3) 100%);
+    }
+
+    .amador-header {
+      background: linear-gradient(135deg, rgba(255, 68, 68, 0.1), rgba(139, 0, 0, 0.05));
+      padding: 24px;
+      border-bottom: 1px solid rgba(255, 68, 68, 0.2);
+    }
+
+    .amador-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 68, 68, 0.15);
+      border: 1px solid rgba(255, 68, 68, 0.3);
+      color: #ff6666;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 8px 20px;
+      border-radius: 100px;
+    }
+
+    /* ── CARD PREMIUM ── */
+    .comparison-card.premium {
+      border: 2px solid var(--gold);
+      background: linear-gradient(135deg, #1a1410 0%, var(--black3) 100%);
+    }
+
+    .premium-header {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.05));
+      padding: 24px;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .premium-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 8px 20px;
+      border-radius: 100px;
+    }
+
+    .comparison-content {
+      padding: 32px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .comparison-desc {
+      font-size: 15px;
+      color: rgba(245,240,232,0.8);
+      line-height: 1.6;
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+
+    .comparison-result {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-style: italic;
+    }
+
+    .comparison-question {
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    /* ── COMPARISON IMAGE CONTAINER ── */
+    .comparison-image-container {
+      width: 100%;
+      aspect-ratio: 1 / 1.414;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .comparison-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ── BONUSES ── */
+    .bonus-section {
+      padding: 100px 24px;
+      background: var(--black2);
+      position: relative;
+    }
+
+    .bonus-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,123,255,0.3), transparent);
+    }
+
+    .bonus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .bonus-card {
+      background: var(--black3);
+      border: 1px solid rgba(0,123,255,0.1);
+      border-radius: 24px;
+      padding: 28px 24px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .bonus-card:hover {
+      border-color: rgba(0,123,255,0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 30px rgba(0,123,255,0.1);
+    }
+
+    .bonus-num {
+      position: absolute;
+      top: -12px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--blue);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 4px 16px;
+      border-radius: 100px;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0,123,255,0.3);
+    }
+
+    .bonus-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--white);}
+    .bonus-card p { font-size: 13px; color: rgba(245,240,232,0.6); line-height: 1.5; margin-bottom: 16px; }
+
+    .price-old { font-size: 13px; color: rgba(245,240,232,0.3); text-decoration: line-through; }
+    .price-free {
+      display: inline-block;
+      background: rgba(0,123,255,0.15);
+      color: var(--blue-hot);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-left: 8px;
+    }
+
+    /* ── TIMER ── */
+    .timer-section {
+      padding: 0 0 60px;
+      text-align: center;
+    }
+
+    .timer-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--blue-hot);
+      margin-bottom: 20px;
+    }
+
+    .timer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 0 auto;
+    }
+
+    .timer-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .timer-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(42px, 10vw, 72px);
+      color: var(--white);
+      background: var(--black3);
+      border: 1px solid rgba(0,123,255,0.3);
+      min-width: 80px;
+      padding: 10px 16px;
+      border-radius: 16px;
+      line-height: 1;
+      box-shadow: inset 0 0 20px rgba(0,123,255,0.1);
+    }
+
+    .timer-unit {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--gray-light);
+      margin-top: 8px;
+    }
+
+    .timer-sep {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 48px;
+      color: var(--blue);
+      margin-top: -16px;
+    }
+
+    /* ── TESTIMONIALS ── */
+    .testimonials {
+      padding: 100px 24px;
+      text-align: center;
+      background: var(--black2);
+      position: relative;
+    }
+
+    .testimonials::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,123,255,0.2), transparent);
+    }
+
+    .testi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      max-width: 860px;
+      margin: 60px auto 0;
+    }
+
+    .testi-card {
+      background: var(--black3);
+      border: 1px solid rgba(0,123,255,0.08);
+      border-radius: 24px;
+      padding: 28px 24px;
+      text-align: left;
+      transition: border-color 0.3s;
+    }
+
+    .testi-card:hover { border-color: rgba(0,123,255,0.3); }
+
+    .stars { color: var(--blue-hot); font-size: 14px; margin-bottom: 14px; letter-spacing: 2px; }
+    .testi-card p { font-size: 14px; color: rgba(245,240,232,0.7); line-height: 1.65; margin-bottom: 20px; font-style: italic; }
+
+    .testi-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .testi-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--blue-hot));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--white);
+      flex-shrink: 0;
+      font-family: 'Bebas Neue', sans-serif;
+    }
+
+    .testi-name { font-size: 14px; font-weight: 700; color: var(--white); }
+    .testi-role { font-size: 11px; color: var(--gray-light); margin-top: 2px; }
+
+    /* ── PRICING ── */
+    .pricing-section {
+      padding: 100px 24px;
+      text-align: center;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 700px;
+      margin: 60px auto 0;
+      align-items: stretch;
+    }
+
+    .price-card {
+      background: var(--black3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 32px;
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s ease;
+    }
+
+    .price-card:hover { border-color: rgba(255,255,255,0.15); }
+
+    .price-card.featured {
+      border: 2px solid var(--blue);
+      background: linear-gradient(160deg, #001a33, #0a0a0a);
+      box-shadow: 0 0 60px rgba(0,123,255,0.15), 0 40px 80px rgba(0,0,0,0.5);
+      transform: scale(1.02);
+    }
+
+    .price-card.featured:hover { transform: scale(1.04); }
+
+    .featured-badge {
+      display: inline-block;
+      background: var(--blue);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 6px 20px;
+      border-radius: 100px;
+      margin-bottom: 24px;
+      align-self: center;
+    }
+
+    .price-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: var(--white);
+    }
+
+    .price-old-val {
+      font-size: 14px;
+      color: rgba(245,240,232,0.4);
+      text-decoration: line-through;
+      margin-bottom: 4px;
+    }
+
+    .price-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 72px;
+      line-height: 1;
+      color: var(--white);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .price-val.highlight { color: var(--blue-hot); }
+    .price-currency { font-size: 28px; margin-top: 12px; }
+    .price-cents { font-size: 28px; margin-top: 12px; }
+
+    .price-features {
+      list-style: none;
+      text-align: left;
+      margin: 28px 0 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .price-features li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: rgba(245,240,232,0.8);
+    }
+
+    .price-features li .check { color: var(--blue-hot); font-size: 18px; flex-shrink: 0; font-weight: bold;}
+    .price-features li .cross { color: rgba(245,240,232,0.25); font-size: 18px; flex-shrink: 0; }
+    .price-features li.dim { color: rgba(245,240,232,0.3); }
+
+    .btn-secondary {
+      display: block;
+      text-align: center;
+      background: rgba(255,255,255,0.07);
+      color: var(--white);
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+
+    .btn-primary-full {
+      display: block;
+      text-align: center;
+      background: var(--blue);
+      color: var(--white);
+      padding: 20px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 30px rgba(0,123,255,0.3);
+      animation: pulse-blue 2.5s infinite;
+    }
+
+    .btn-primary-full:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px rgba(0,123,255,0.5);
+      background: var(--blue-hot);
+    }
+
+    /* ── GUARANTEE ── */
+    .guarantee-section {
+      padding: 80px 24px;
+      background: var(--black2);
+      position: relative;
+    }
+
+    .guarantee-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,123,255,0.2), transparent);
+    }
+
+    .guarantee-inner {
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      text-align: center;
+    }
+
+    .guarantee-seal {
+      width: 100px; height: 100px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      flex-shrink: 0;
+      box-shadow: 0 0 40px rgba(0,123,255,0.4);
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .guarantee-inner h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 5vw, 48px);
+      margin-bottom: 12px;
+      color: var(--white);
+    }
+
+    .guarantee-inner p {
+      color: rgba(245,240,232,0.7);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .guarantee-tag {
+      display: inline-block;
+      background: rgba(0,123,255,0.12);
+      border: 1px solid rgba(0,123,255,0.3);
+      color: var(--blue-hot);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 10px 28px;
+      border-radius: 100px;
+    }
+
+    /* ── FAQ ── */
+    .faq-section {
+      padding: 100px 24px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid rgba(0,123,255,0.15);
+    }
+
+    .faq-q {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      gap: 16px;
+    }
+
+    .faq-q .arrow {
+      color: var(--blue-hot);
+      font-size: 20px;
+      flex-shrink: 0;
+      transition: transform 0.3s;
+    }
+
+    .faq-item.open .arrow { transform: rotate(180deg); }
+
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+      font-size: 14px;
+      color: rgba(245,240,232,0.65);
+      line-height: 1.7;
+    }
+
+    .faq-item.open .faq-a { max-height: 300px; padding-bottom: 24px; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px 24px;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    footer p {
+      font-size: 12px;
+      color: rgba(245,240,232,0.3);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--black3);
+      border: 1px solid rgba(0,123,255,0.3);
+      border-radius: 32px;
+      max-width: 360px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.8), 0 0 60px rgba(0,123,255,0.15);
+      animation: modalIn 0.3s ease;
+    }
+
+    .modal-top {
+      background: linear-gradient(160deg, #001a33, #0a0a0a);
+      padding: 32px 28px 24px;
+      text-align: center;
+      border-bottom: 1px solid rgba(0,123,255,0.15);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: rgba(255,255,255,0.07);
+      border: none;
+      color: rgba(245,240,232,0.5);
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover { background: rgba(255,255,255,0.2); color: var(--white); }
+
+    .modal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,123,255,0.15);
+      border: 1px solid rgba(0,123,255,0.3);
+      color: var(--blue-hot);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 16px;
+    }
+
+    .modal-top h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: var(--white);
+    }
+
+    .modal-top .modal-desc {
+      font-size: 13px;
+      color: rgba(245,240,232,0.65);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .modal-price-old {
+      font-size: 13px;
+      color: rgba(245,240,232,0.4);
+      text-decoration: line-through;
+    }
+
+    .modal-price {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 56px;
+      color: var(--blue-hot);
+      line-height: 1;
+    }
+
+    .modal-body { padding: 24px 28px; }
+
+    .modal-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .modal-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: rgba(245,240,232,0.8);
+    }
+
+    .modal-list li .ic { font-size: 16px; }
+
+    /* ── ANIMS ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse-blue {
+      0%   { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
+      60%  { box-shadow: 0 0 0 14px rgba(0,123,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,123,255,0); }
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.92) translateY(20px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,123,255,0.2), transparent);
+      margin: 0;
+    }
+
+    /* ── RESPONSIVO ── */
+    @media (max-width: 768px) {
+      .comparison-grid {
+        gap: 24px;
+      }
+
+      .comparison-card {
+        padding: 0;
+      }
+
+      .comparison-image-container {
+        aspect-ratio: 1 / 1.414;
+        max-height: 500px;
+      }
+
+      .comparison-content {
+        padding: 24px 18px;
+      }
+
+      .comparison-desc {
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      .comparison-result {
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      .comparison-question {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .comparison-grid {
+        gap: 16px;
+      }
+
+      .comparison-image-container {
+        aspect-ratio: 1 / 1.414;
+        max-height: 420px;
+        border-radius: 12px;
+      }
+
+      .comparison-header {
+        padding: 16px !important;
+      }
+
+      .comparison-badge {
+        font-size: 10px !important;
+        padding: 6px 14px !important;
+      }
+
+      .comparison-content {
+        padding: 16px 14px !important;
+      }
+
+      .comparison-desc {
+        font-size: 12px;
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+
+      .comparison-result {
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
+
+      .comparison-question {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  🧽 Oferta Especial: Archivos 100% Editables Liberados — Accede y comienza a usar en Canva ✨
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="bg-text-large">DETAIL</div>
+
+  <div class="badge">
+    <span>💎</span> Presentación Profesional de Precios y Servicios
+  </div>
+
+  <h1>Catálogo <em>Profesional</em> Para Estética Automotriz</h1>
+
+  <p class="sub">
+    Una <strong>Plantilla de Catálogo 100% editable en Canva</strong> (desde celular o PC) para exportar como un <strong>PDF Interactivo</strong>. Deja de enviar mensajes de texto largos con precios por WhatsApp: presenta las etapas y valores de tus paquetes con un diseño premium, justifica tu precio y vende más servicios.
+  </p>
+
+  <!-- HERO VISUALS -->
+  <div class="hero-visuals">
+    <!-- Imagem Principal -->
+    <img src="assets/hero-mockup.jpg" class="feed-image" alt="Catálogo de Estética Automotriz - Modelo Principal">
+    
+    <!-- Carrossel Deslizável -->
+    <div class="hero-carousel-wrapper">
+      <div class="swipe-hint"><span>←</span> Desliza con el dedo <span>→</span></div>
+      
+      <div class="hero-carousel" id="heroCarousel">
+        <img src="assets/carousel-1.png" class="carousel-item" alt="Estética para Motos">
+        <img src="assets/carousel-2.jpg" class="carousel-item" alt="Pulido y Protección">
+        <img src="assets/carousel-3.png" class="carousel-item" alt="Plan Personalizado">
+        <img src="assets/carousel-4.png" class="carousel-item" alt="Lavados Esenciales">
+        <img src="assets/carousel-5.png" class="carousel-item" alt="Limpieza Detallada">
+      </div>
+      
+      <div class="glow-ring"></div>
+    </div>
+  </div>
+
+  <div class="cta-group">
+    <a href="#kits" class="btn-main">Quiero Mi Catálogo de Servicios</a>
+    <span class="btn-small">Acceso inmediato · Editas todo desde tu celular o PC</span>
+  </div>
+</header>
+
+<section class="how-it-works">
+  <div class="section-label">Paso a Paso Simple</div>
+  <h2 class="section-title" style="color:var(--white);">Entiende exactamente<br><span style="color:var(--blue-hot);">cómo funciona</span></h2>
+  <p class="section-sub">No necesitas saber de diseño. Nosotros creamos la estructura, tú solo la completas con tus paquetes de estética. Mira qué fácil es:</p>
+
+  <div class="step-grid">
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <h3>Adquieres el Kit</h3>
+      <p>Tras confirmar tu compra, recibirás en tu correo acceso inmediato a nuestro Área de Miembros con el enlace de tu nuevo catálogo y todos los bonos.</p>
+    </div>
+    
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <h3>Lo abres en tu Canva</h3>
+      <p>Solo haz clic en el enlace y la plantilla se abrirá automáticamente en tu aplicación de Canva (funciona a la perfección en la versión gratuita, en celular o PC).</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <h3>Modificas Información y Precios</h3>
+      <p>Describe exactamente lo que incluye cada paquete (etapas del servicio), coloca tu precio y añade tus fotos de "Antes y Después" para demostrar la calidad.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">4</div>
+      <h3>Envías e Impresionas</h3>
+      <p>Descárgalo como PDF. Cuando el cliente te pida un "presupuesto de lavado" por WhatsApp, envíale este catálogo detallado. Verá el valor de tu trabajo antes de ver el precio.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="pain-section">
+  <div class="section-label" style="margin-bottom: 16px;">El Fin de la "Lista de Precios"</div>
+  <h2>¿Por qué tu estudio<br><span style="color:var(--blue-hot);">necesita esto?</span></h2>
+
+  <div class="pain-list">
+    <div class="pain-item">
+      <div class="pain-icon">❌</div>
+      <p><strong>El mensaje de texto asusta al cliente:</strong> Enviar una lista de precios fría por WhatsApp hace que el cliente se enfoque solo en quien cobra más barato. El catálogo presenta los beneficios primero.</p>
+    </div>
+    <div class="pain-item">
+      <div class="pain-icon">💎</div>
+      <p><strong>El cliente no entiende el servicio:</strong> ¿Cuál es la diferencia entre el Lavado Simple y el Detallado? En el catálogo, describes todas las etapas de forma clara, justificando por que uno cuesta más que el otro.</p>
+    </div>
+    <div class="pain-item">
+      <div class="pain-icon">⏱️</div>
+      <p><strong>Fin de los pedidos de descuento:</strong> Un pulido o vitrificado presentado en un PDF de alta calidad respalda tu valor. El cliente entiende que tu servicio es premium y no de cualquier esquina.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="preview-section">
+  <div class="section-label">Todo Organizado</div>
+  <h2 class="section-title">Páginas listas para<br>cada uno de tus servicios</h2>
+  <p class="section-sub">El catálogo viene con páginas específicas estructuradas para detallar información, procesos y precios de: Lavados Especiales, Limpieza de Interiores, Pulido Comercial/Técnico y Vitrificados (Cerámicos).</p>
+
+  <!-- COMPARATIVO: ANTES vs DEPOIS -->
+  <div class="comparison-grid">
+    <!-- CARD ESQUERDO - O JEITO AMADOR -->
+    <div class="comparison-card amador">
+      <div class="comparison-header amador-header">
+        <span class="comparison-badge amador-badge">❌ EL MODO AMATEUR</span>
+      </div>
+      <div class="comparison-content">
+        <p class="comparison-desc">Textos gigantes, precios sueltos y el cliente confundido sobre lo que incluye el servicio.</p>
+        
+        <!-- IMAGEM DO WHATSAPP -->
+        <div class="comparison-image-container">
+          <img src="assets/amateur-whatsapp.png" alt="Captura WhatsApp - Modo Amateur" class="comparison-image">
+        </div>
+        
+        <p class="comparison-result">El cliente ve un precio alto y pide descuento</p>
+        <p class="comparison-question">No entiende la diferencia entre los servicios</p>
+      </div>
+    </div>
+
+    <!-- CARD DIREITO - COM O CATÁLOGO -->
+    <div class="comparison-card premium">
+      <div class="comparison-header premium-header">
+        <span class="comparison-badge premium-badge">⭐ CON EL CATÁLOGO</span>
+      </div>
+      <div class="comparison-content">
+        <p class="comparison-desc">Presentación profesional. El cliente ve los detalles y justifica mentalmente la inversión.</p>
+        
+        <!-- IMAGEM DO CATÁLOGO -->
+        <div class="comparison-image-container">
+          <img src="assets/premium-catalog.png" alt="Captura Catálogo - Con Catálogo Premium" class="comparison-image">
+        </div>
+        
+        <p class="comparison-result">El cliente ve el valor agregado</p>
+        <p class="comparison-question">Justifica la inversión en el servicio</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="bonus-section">
+  <div style="text-align:center;margin-bottom:64px;">
+    <div class="section-label">Paquete de Regalos</div>
+    <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,7vw,72px);line-height:0.95;margin-bottom:16px;">Archivos Extras que vienen<br><span style="color:var(--blue-hot)">en el kit completo</span></h2>
+    <div style="width:60px;height:3px;background:var(--blue);margin:24px auto 0;border-radius:2px;"></div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="timer-section" style="padding:0 0 60px;">
+    <p class="timer-label">⏰ Estos bonos expiran en:</p>
+    <div class="timer">
+      <div class="timer-block">
+        <div class="timer-num" id="t-h">02</div>
+        <div class="timer-unit">horas</div>
+      </div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block">
+        <div class="timer-num" id="t-m">59</div>
+        <div class="timer-unit">min</div>
+      </div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block">
+        <div class="timer-num" id="t-s">59</div>
+        <div class="timer-unit">seg</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bonus-grid">
+    <div class="bonus-card">
+      <div class="bonus-num">BONO 01</div>
+      <div style="width:100%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;margin-bottom:16px; background:#1a1a1a;">
+        <img src="assets/bonus-videos.jpg" alt="20 Plantillas de Videos CapCut" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <h4>20 Plantillas de Videos (CapCut)</h4>
+      <p>Modelos de Reels dinámicos para mostrar tus resultados de "Antes y Después". Solo sube tus videos cortos, el ritmo se sincroniza solo y atrae vistas.</p>
+      <div><span class="price-old">45.000 COP</span><span class="price-free">Hoy: Gratis</span></div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="bonus-num">BONO 02</div>
+      <div style="width:100%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;margin-bottom:16px; background:#1a1a1a;">
+        <img src="assets/bonus-instagram.jpg" alt="Portadas de Destacados" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <h4>Portadas de Destacados Premium</h4>
+      <p>Iconos elegantes para organizar el Instagram de tu estudio (ej. Destacados de Vitrificado, Opiniones de Clientes, Ubicación, PPF).</p>
+      <div><span class="price-old">16.000 COP</span><span class="price-free">Hoy: Gratis</span></div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="bonus-num">BONO 03</div>
+      <div style="width:100%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;margin-bottom:16px; background:#1a1a1a;">
+        <img src="assets/bonus-calculator.jpg" alt="Calculadora de Costos" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <h4>Calculadora de Costos de Servicios</h4>
+      <p>Herramienta interactiva para calcular el precio final de tu servicio de estética automotriz. Incluye mano de obra, insumos, gastos y margen de ganancia.</p>
+      <div><span class="price-old">65.000 COP</span><span class="price-free">Hoy: Gratis</span></div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="bonus-num">BONO 04</div>
+      <div style="width:100%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;margin-bottom:16px; background:#1a1a1a;">
+        <img src="assets/bonus-photography.jpg" alt="Guía de Fotos" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <h4>Guía: Fotografía para Detailers</h4>
+      <p>Aprende los mejores ángulos y cómo posicionar las luces de tu taller para capturar el "reflejo de espejo" perfecto en la pintura del auto.</p>
+      <div><span class="price-old">26.000 COP</span><span class="price-free">Hoy: Gratis</span></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="testimonials">
+  <div class="section-label">Lo que dicen los profesionales</div>
+  <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,7vw,72px);line-height:0.95;">Quiénes ya lo usan y<br>aumentaron su facturación</h2>
+
+  <div class="testi-grid">
+    <div class="testi-card">
+      <div class="stars">★★★★★</div>
+      <p>"Cambió mi juego en WhatsApp. Antes el cliente preguntaba el precio del lavado, yo le respondía con un texto enorme y desaparecía pensando que era caro. Ahora le envío el catálogo detallando paso a paso lo que hago en el auto. El cliente nota el profesionalismo y pide agendar de inmediato."</p>
+      <div class="testi-author">
+        <img src="https://i.pravatar.cc/100?img=11" alt="Foto de Thiago" class="testi-avatar" style="object-fit: cover; background: none;">
+        <div>
+          <div class="testi-name">Thiago Morales</div>
+          <div class="testi-role">Dueño de Detailing Studio</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testi-card">
+      <div class="stars">★★★★★</div>
+      <p>"Es sumamente fácil de editar. Puse mi logo, cambié los colores al negro y dorado de mi estudio e incluí mis fotos de vitrificado cerámico. Cobro $300 USD por el servicio y este catálogo me ayudó a transmitir la confianza necesaria para cobrar ese valor."</p>
+      <div class="testi-author">
+        <img src="https://i.pravatar.cc/100?img=12" alt="Foto de Lucas" class="testi-avatar" style="object-fit: cover; background: none;">
+        <div>
+          <div class="testi-name">Lucas Ferrer</div>
+          <div class="testi-role">Detailer Independiente</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="kits" class="pricing-section">
+  <div class="section-label">Liberar Acceso</div>
+  <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,7vw,72px);line-height:0.95;">¿Qué formato se adapta<br><span style="color:var(--blue-hot)">hoy a tu estudio?</span></h2>
+
+  <div class="pricing-grid">
+    <div class="price-card featured" style="order:1;">
+      <div class="featured-badge">⭐ El Más Elegido</div>
+      <p class="price-name">Kit Detail Completo</p>
+      <p class="price-old-val">De 140.000 COP por solo</p>
+      <div class="price-val highlight">
+        <span class="price-currency">$</span>
+        <span>24</span>
+        <span class="price-cents">.200 COP</span>
+      </div>
+      <p style="font-size:12px; color:rgba(255,255,255,0.5); text-transform:uppercase; font-weight:bold; letter-spacing:1px; margin-bottom: 20px;">Pago Único. Sin Mensualidades.</p>
+
+      <ul class="price-features">
+        <li><span class="check">✓</span> <strong>Archivo:</strong> Catálogo Premium Editable</li>
+        <li><span class="check">✓</span> <strong>Acceso:</strong> Vitalicio (tuyo para siempre)</li>
+        <li><span class="check">✓</span> <strong>Software:</strong> Edita en Canva Gratis</li>
+        <li><span class="check">✓</span> 🎁 Bono: 20 Plantillas de Reels (CapCut)</li>
+        <li><span class="check">✓</span> 🎁 Bono: Portadas de Destacados de Instagram</li>
+        <li><span class="check">✓</span> 🧮 Bono: Calculadora de Costos de Servicios</li>
+        <li><span class="check">✓</span> 🎁 Bono: Guía de Fotos para Detailers</li>
+      </ul>
+
+      <a href="https://donamaria.salduu.com/p/catalogo-de-estetica-automotriz?pay=true" class="btn-primary-full" target="_blank">Comprar Kit Completo →</a>
+    </div>
+
+    <!-- KIT BÁSICO -->
+    <div class="price-card" style="order:2;">
+      <p class="price-name">Kit Básico</p>
+      <p class="price-old-val">Valor original: 45.000 COP</p>
+      <div class="price-val">
+        <span class="price-currency">$</span>
+        <span>14</span>
+        <span class="price-cents">.350 COP</span>
+      </div>
+      <p style="font-size:12px; color:rgba(255,255,255,0.3); text-transform:uppercase; font-weight:bold; letter-spacing:1px; margin-bottom: 20px;">Pago Único.</p>
+
+      <ul class="price-features">
+        <li><span class="check">✓</span> <strong>Archivo:</strong> Solo el Catálogo Básico</li>
+        <li><span class="check">✓</span> <strong>Acceso:</strong> Vitalicio</li>
+        <li><span class="check">✓</span> <strong>Software:</strong> Edita en Canva Gratis</li>
+        <li class="dim"><span class="cross">✕</span> Sin Plantillas de Video</li>
+        <li class="dim"><span class="cross">✕</span> Sin Scripts ni Guías de Fotos</li>
+      </ul>
+
+      <a href="https://donamaria.salduu.com/p/catalogo-de-estetica-automotriz1?pay=true" class="btn-secondary" target="_blank">Quiero Solo el Básico</a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="guarantee-section">
+  <div class="guarantee-inner">
+    <div class="guarantee-seal">🛡️</div>
+    <div>
+      <h2>Garantía Incondicional<br>de 7 Días</h2>
+      <p>Nuestro objetivo es elevar el nivel de tu estudio. Compra, abre en Canva y prueba a armar tu portafolio de estética. Si consideras que es difícil de usar, o simplemente no te gusta el diseño, envía un solo correo electrónico a nuestro soporte dentro de los primeros 7 días y te devolveremos el 100% de tu dinero.</p>
+    </div>
+    <div class="guarantee-tag">Compra 100% Protegida y Segura</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="faq-section">
+  <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,6vw,60px);line-height:0.95;text-align:center;margin-bottom:48px;">Resuelve tus dudas<br><span style="color:var(--blue-hot)">aquí abajo</span></h2>
+
+  <div class="faq-item open" onclick="toggleFaq(this)">
+    <div class="faq-q">1. ¿Sirve para quien trabaja solo (Detailer Independiente)? <span class="arrow">▾</span></div>
+    <div class="faq-a">¡Sí! Es precisamente para quienes no tienen tiempo que perder. Con este catálogo, incluso trabajando solo, tu presentación por WhatsApp parecerá la de un estudio gigante. Es la forma más económica de lucir altamente profesional.</div>
+  </div>
+
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">2. ¿Tendré que pagar por Canva Pro (de pago) para usarlo? <span class="arrow">▾</span></div>
+    <div class="faq-a">Para nada. Tuvimos el cuidado de diseñar todo el catálogo usando únicamente herramientas gratuitas de Canva. Podrás usarlo y guardarlo con tu cuenta gratuita normal.</div>
+  </div>
+
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">3. ¿Se puede editar desde el celular o solo desde la computadora? <span class="arrow">▾</span></div>
+    <div class="faq-a">¡Funciona en ambos! Puedes terminar un vitrificado, tomar la foto del auto con tu celular, abrir la app de Canva, subir la foto allí y actualizar tu catálogo al instante para enviárselo al próximo cliente.</div>
+  </div>
+
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">4. Mi estudio tiene los colores Verde y Negro. ¿Puedo cambiarlos? <span class="arrow">▾</span></div>
+    <div class="faq-a">Por supuesto. La plantilla está 100% desbloqueada. Insertas tu logotipo, haces clic en el fondo y lo cambias al color que represente a tu negocio. Dejas el documento con tu identidad visual en 2 clics.</div>
+  </div>
+</section>
+
+<footer>
+  <p>© 2026 — Catálogo Premium para Estética Automotriz. Todos los derechos reservados. Diseñado para detailers exigentes.</p>
+</footer>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-top">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-badge">⚡ Oferta Especial Desbloqueada</div>
+      <h3>¡Espera! 🧽</h3>
+      <p class="modal-desc">Notamos que deseas el paquete básico. ¿Pero qué tal llevarte <strong>TODOS LOS BONOS</strong> de marketing por una diferencia mínima?</p>
+      <p class="modal-price-old">De 24.200 COP por solo</p>
+      <p class="modal-price">17.400 COP</p>
+      <p style="font-size:11px; color:rgba(255,255,255,0.5); margin-top: 5px;">Te llevas la estructura completa por el precio de un paño de microfibra.</p>
+    </div>
+    <div class="modal-body">
+      <ul class="modal-list">
+        <li><span class="ic">✓</span> Catálogo Premium Editable</li>
+        <li><span class="ic">🎁</span> Bono: 20 Plantillas de Videos (Reels)</li>
+        <li><span class="ic">🎁</span> Bono: Portadas de Destacados de Instagram</li>
+        <li><span class="ic">🧮</span> Bono: Calculadora de Costos de Servicios</li>
+        <li><span class="ic">🎁</span> Bono: Guía de Fotografía para Detailers</li>
+      </ul>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <a href="#" class="btn-primary-full" style="font-size:13px;" target="_blank">¡Sí, quiero la oferta Completa por 17.400 COP!</a>
+        <a href="https://donamaria.salduu.com/p/catalogo-de-estetica-automotriz1?pay=true" style="text-align:center;color:rgba(245,240,232,0.4);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;padding:10px;text-decoration:none;" target="_blank">No, gracias. Quiero solo el Básico (14.350 COP)</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let total = (2 * 3600) + (59 * 60) + 59;
+  function tick() {
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    document.getElementById('t-h').textContent = String(h).padStart(2,'0');
+    document.getElementById('t-m').textContent = String(m).padStart(2,'0');
+    document.getElementById('t-s').textContent = String(s).padStart(2,'0');
+    if (total > 0) total--;
+  }
+  setInterval(tick, 1000);
+  tick();
+
+  function toggleFaq(el) {
+    el.classList.toggle('open');
+  }
+
+  function openModal() {
+    document.getElementById('modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  const carousel = document.getElementById('heroCarousel');
+
+  if (carousel) {
+    const items = Array.from(carousel.querySelectorAll('.carousel-item'));
+    
+    // Function to calculate which item is closest to the visible center
+    const getActiveIndex = () => {
+      const scrollCenter = carousel.scrollLeft + (carousel.offsetWidth / 2);
+      let closestIndex = 0;
+      let minDistance = Infinity;
+      
+      items.forEach((item, index) => {
+        const itemCenter = item.offsetLeft + (item.offsetWidth / 2);
+        const distance = Math.abs(scrollCenter - itemCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = index;
+        }
+      });
+      return closestIndex;
+    };
+
+    // Update active visual class
+    const updateActiveItem = () => {
+      const activeIndex = getActiveIndex();
+      items.forEach((item, index) => {
+        if (index === activeIndex) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    };
+
+    // Listen to scroll to update visual states instantly
+    carousel.addEventListener('scroll', updateActiveItem);
+    
+    // Set up click to scroll to item
+    items.forEach((item) => {
+      item.addEventListener('click', () => {
+        const scrollPos = item.offsetLeft - (carousel.offsetWidth / 2) + (item.offsetWidth / 2);
+        carousel.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      });
+    });
+
+    // Initialize state
+    updateActiveItem();
+
+    let autoPlayInterval;
+
+    const startAutoPlay = () => {
+      autoPlayInterval = setInterval(() => {
+        const activeIndex = getActiveIndex();
+        
+        let nextIndex = activeIndex + 1;
+        if (nextIndex >= items.length) {
+          nextIndex = 0; // Loop back to start
+        }
+
+        const nextItem = items[nextIndex];
+        if (nextItem) {
+          const scrollPos = nextItem.offsetLeft - (carousel.offsetWidth / 2) + (nextItem.offsetWidth / 2);
+          carousel.scrollTo({ left: scrollPos, behavior: 'smooth' });
+        }
+      }, 3000); 
+    };
+
+    startAutoPlay();
+    
+    // Pause autoplay during touch interaction and resume afterwards
+    carousel.addEventListener('touchstart', () => clearInterval(autoPlayInterval), { passive: true });
+    carousel.addEventListener('touchend', () => {
+      clearInterval(autoPlayInterval);
+      startAutoPlay();
+    }, { passive: true });
+    
+    carousel.addEventListener('mouseenter', () => clearInterval(autoPlayInterval));
+    carousel.addEventListener('mouseleave', () => {
+      clearInterval(autoPlayInterval);
+      startAutoPlay();
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Search, MessageSquare, Users, Megaphone, Settings, Zap
+  LayoutDashboard, Search, MessageSquare, Users, Megaphone, Settings, Zap, Send
 } from 'lucide-react';
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { to: '/chat', icon: MessageSquare, label: 'Chat / CRM' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/campaigns', icon: Megaphone, label: 'Campanhas' },
+  { to: '/bulk', icon: Send, label: 'Disparo em Massa' },
 ];
 
 const Sidebar = () => {

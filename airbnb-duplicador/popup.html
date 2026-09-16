@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Airbnb Duplicador</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span class="logo-icon">⌂</span> Airbnb Duplicador
+      </div>
+      <div class="subtitle">Automatize e duplique anúncios com facilidade</div>
+    </header>
+
+    <main>
+      <div class="status-panel" id="automationStatusPanel">
+        <div class="status-indicator">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Automação Inativa</span>
+        </div>
+        <button type="button" class="btn-quick-link" id="btnOpenHost">Abrir Criador do Airbnb</button>
+      </div>
+
+      <form id="settingsForm">
+        <!-- Text Details Section -->
+        <div class="section-title">Dados do Anúncio</div>
+        
+        <div class="form-group">
+          <label for="listingTitle">Título do Anúncio</label>
+          <input type="text" id="listingTitle" placeholder="Ex: Resort Luxuoso Pirenópolis - QSB" required>
+        </div>
+
+        <div class="form-group">
+          <label for="listingInternalName">Nome Interno (Editor)</label>
+          <input type="text" id="listingInternalName" placeholder="Ex: Apto 102 - Quinta Santa Bárbara" required>
+        </div>
+
+        <div class="form-group">
+          <label for="listingBasePrice">Preço Base (R$)</label>
+          <input type="number" id="listingBasePrice" min="10" value="1000" required>
+        </div>
+
+        <div class="form-group">
+          <label for="listingDescription">Descrição Geral (Anúncio)</label>
+          <textarea id="listingDescription" rows="3" placeholder="Insira a descrição geral do espaço..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="listingPropertyDetails">Sua Propriedade (Editor)</label>
+          <textarea id="listingPropertyDetails" rows="2" placeholder="🏡 Descreva a propriedade (quartos, áreas)..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="listingGuestAccess">Acesso do Hóspede (Editor)</label>
+          <textarea id="listingGuestAccess" rows="2" placeholder="🚪 O que os hóspedes podem acessar..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="listingOtherDetails">Outras Informações Importantes (Editor)</label>
+          <textarea id="listingOtherDetails" rows="2" placeholder="📋 Regras da casa, check-in, etc..."></textarea>
+        </div>
+
+        <!-- Accommodation Numbers Section -->
+        <div class="section-title">Capacidades básicas</div>
+        <div class="form-grid-4">
+          <div class="form-group">
+            <label for="countGuests">Hóspedes</label>
+            <input type="number" id="countGuests" min="1" max="16" value="4">
+          </div>
+          <div class="form-group">
+            <label for="countBedrooms">Quartos</label>
+            <input type="number" id="countBedrooms" min="0" max="10" value="1">
+          </div>
+          <div class="form-group">
+            <label for="countBeds">Camas</label>
+            <input type="number" id="countBeds" min="1" max="30" value="3">
+          </div>
+          <div class="form-group">
+            <label for="countBathrooms">Banheiros</label>
+            <input type="number" id="countBathrooms" min="0.5" max="10" step="0.5" value="1">
+          </div>
+        </div>
+
+        <!-- Space Type & Category -->
+        <div class="section-title">Tipo e Categoria</div>
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="spaceType">Tipo de Espaço</label>
+            <select id="spaceType">
+              <option value="Um espaço inteiro" selected>Um espaço inteiro</option>
+              <option value="Um quarto">Um quarto</option>
+              <option value="Quarto compartilhado">Quarto compartilhado</option>
+            </select>
+          </div>
+          <div class="form-group half">
+            <label for="spaceCategory">Categoria</label>
+            <select id="spaceCategory">
+              <option value="Apartamento" selected>Apartamento</option>
+              <option value="Casa">Casa</option>
+              <option value="Pousada">Pousada</option>
+              <option value="Cabana">Cabana</option>
+              <option value="Contêiner">Contêiner</option>
+              <option value="Casa de cúpula">Casa de cúpula</option>
+              <option value="Casa de campo">Casa de campo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Map & Location options -->
+        <div class="form-row toggle-row">
+          <div class="toggle-container">
+            <span class="toggle-label">Mostrar localização exata no mapa</span>
+            <label class="switch">
+              <input type="checkbox" id="showExactLocation">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Editor details (cancellation policy etc) -->
+        <div class="section-title">Configurações de Reserva (Pós-Publicação)</div>
+        <div class="form-group">
+          <label for="cancellationPolicy">Política de Cancelamento</label>
+          <select id="cancellationPolicy">
+            <option value="Restrita" selected>Restrita (Não reembolsável)</option>
+            <option value="Moderada">Moderada</option>
+            <option value="Flexível">Flexível</option>
+          </select>
+        </div>
+
+        <div class="actions-container">
+          <button type="button" class="btn-action btn-secondary" id="btnReset">Limpar</button>
+          <button type="submit" class="btn-action btn-primary" id="btnStart">Iniciar Automação</button>
+        </div>
+      </form>
+    </main>
+
+    <footer>
+      <div id="statusMessage" class="status-msg"></div>
+      <div class="footer-note">Preencha os dados e execute no criador de anúncios do Airbnb</div>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

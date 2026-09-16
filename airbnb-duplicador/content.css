@@ -1,0 +1,386 @@
+/* Airbnb Duplicator Content Script Floating Widget Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+#airbnb-duplicator-widget {
+  all: initial; /* Reset all browser styles for the container */
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 330px;
+  background: rgba(15, 23, 42, 0.88) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4) !important;
+  z-index: 99999999 !important;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif !important;
+  color: #F8FAFC !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#airbnb-duplicator-widget.collapsed {
+  width: 180px !important;
+}
+
+/* Header */
+.ab-widget-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 16px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  cursor: pointer !important;
+}
+
+.ab-widget-title {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.2px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #F8FAFC !important;
+}
+
+.ab-widget-title-icon {
+  color: #FF385C !important;
+  font-size: 16px !important;
+}
+
+.ab-widget-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.ab-widget-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background-color: #64748B !important;
+  display: inline-block !important;
+}
+
+.ab-widget-dot.active {
+  background-color: #10B981 !important;
+  box-shadow: 0 0 8px #10B981 !important;
+  animation: ab-pulse 2s infinite !important;
+}
+
+.ab-widget-collapse-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #94A3B8 !important;
+  cursor: pointer !important;
+  padding: 2px !important;
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Body */
+.ab-widget-body {
+  padding: 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  max-height: 450px !important;
+  overflow-y: auto !important;
+  transition: max-height 0.3s ease !important;
+}
+
+#airbnb-duplicator-widget.collapsed .ab-widget-body {
+  max-height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Status Indicator Card */
+.ab-status-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+}
+
+.ab-status-label {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #94A3B8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.ab-status-value {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #F1F5F9 !important;
+  margin-top: 2px !important;
+}
+
+/* Log Container */
+.ab-log-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 10px !important;
+  padding: 10px !important;
+  height: 140px !important;
+  overflow-y: auto !important;
+  font-family: monospace !important;
+}
+
+.ab-log-entry {
+  font-size: 10.5px !important;
+  line-height: 1.4 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  color: #CBD5E1 !important;
+}
+
+.ab-log-bullet {
+  color: #64748B !important;
+  font-weight: bold !important;
+}
+
+.ab-log-entry.success {
+  color: #34D399 !important;
+}
+.ab-log-entry.success .ab-log-bullet {
+  color: #10B981 !important;
+}
+
+.ab-log-entry.warning {
+  color: #FBBF24 !important;
+}
+.ab-log-entry.warning .ab-log-bullet {
+  color: #F59E0B !important;
+}
+
+.ab-log-entry.error {
+  color: #F87171 !important;
+}
+.ab-log-entry.error .ab-log-bullet {
+  color: #EF4444 !important;
+}
+
+/* Action Controls */
+.ab-action-row {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+
+.ab-btn {
+  flex: 1 !important;
+  border: none !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.ab-btn-primary {
+  background: #FF385C !important;
+  color: white !important;
+}
+
+.ab-btn-primary:hover {
+  background: #E61E4D !important;
+  box-shadow: 0 0 8px rgba(255, 56, 92, 0.4) !important;
+}
+
+.ab-btn-secondary {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #E2E8F0 !important;
+}
+
+.ab-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #FFF !important;
+}
+
+.ab-btn-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Pulsing dot animation */
+@keyframes ab-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Animations and helpers */
+.ab-widget-loader {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  border-top: 2px solid #FF385C !important;
+  border-radius: 50% !important;
+  animation: ab-spin 0.8s linear infinite !important;
+  display: inline-block !important;
+}
+
+@keyframes ab-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Settings Accordion & Config Form Styles */
+.ab-settings-accordion {
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  margin-top: 4px !important;
+  padding-top: 4px !important;
+}
+
+.ab-details-accordion {
+  display: block !important;
+  outline: none !important;
+}
+
+.ab-summary-accordion {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #38BDF8 !important;
+  cursor: pointer !important;
+  list-style: none !important;
+  user-select: none !important;
+  transition: color 0.2s ease !important;
+}
+
+.ab-summary-accordion::-webkit-details-marker {
+  display: none !important;
+}
+
+.ab-summary-accordion::after {
+  content: '▼' !important;
+  font-size: 8px !important;
+  color: #64748B !important;
+  transition: transform 0.2s ease !important;
+}
+
+.ab-details-accordion[open] .ab-summary-accordion::after {
+  transform: rotate(180deg) !important;
+}
+
+.ab-summary-accordion:hover {
+  color: #FF385C !important;
+}
+
+.ab-accordion-content {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 8px 2px 14px 2px !important;
+  max-height: 280px !important;
+  overflow-y: auto !important;
+}
+
+/* Scrollbar styling for accordion content */
+.ab-accordion-content::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.ab-accordion-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-radius: 3px !important;
+}
+
+.ab-accordion-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 3px !important;
+}
+
+.ab-accordion-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.ab-input-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  text-align: left !important;
+}
+
+.ab-input-group-row {
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.ab-input-group.half {
+  flex: 1 !important;
+  width: 50% !important;
+}
+
+.ab-input-group.fourth {
+  width: 25% !important;
+  min-width: 50px !important;
+}
+
+.ab-input-group label {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  color: #94A3B8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ab-input-group input, 
+.ab-input-group textarea {
+  display: block !important;
+  width: 100% !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: #F8FAFC !important;
+  padding: 6px 8px !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-size: 11px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s ease !important;
+}
+
+.ab-input-group input:focus, 
+.ab-input-group textarea:focus {
+  border-color: #FF385C !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.2) !important;
+}
+
+.ab-input-group textarea {
+  resize: vertical !important;
+  min-height: 40px !important;
+}
