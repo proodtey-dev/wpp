@@ -56,7 +56,19 @@ const playNotificationSound = () => {
 };
 
 const DeliveryIcon = ({ status, error }: { status: string; error?: string }) => {
-  if (status === 'failed') return <X size={12} className="delivery-icon failed" title={error || "Erro no envio: Janela de 24h da Meta encerrada ou número sem WhatsApp. Envie um Template em Campanhas."} />;
+  if (status === 'failed') {
+    const errorText = error || "Erro na Meta WhatsApp API: Verifique o nome/mídia do Template ou se o número tem WhatsApp ativo.";
+    return (
+      <span
+        onClick={() => alert(`⚠️ Erro ao entregar mensagem via Meta API:\n\n${errorText}`)}
+        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+        title="Clique para ver o motivo da falha de entrega"
+      >
+        <X size={12} className="delivery-icon failed" />
+        <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, textDecoration: 'underline' }}>Falhou</span>
+      </span>
+    );
+  }
   if (status === 'read') return <CheckCheck size={12} className="delivery-icon read" />;
   if (status === 'delivered') return <CheckCheck size={12} className="delivery-icon delivered" />;
   if (status === 'sent') return <Check size={12} className="delivery-icon sent" />;
