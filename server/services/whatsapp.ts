@@ -47,13 +47,37 @@ export const whatsappService = {
               const actualParams = (params && params.length > 0) ? params : ['Cliente'];
 
               if (Array.isArray(match.components)) {
+                console.log('📋 Componentes do template:', JSON.stringify(match.components, null, 2));
                 for (const comp of match.components) {
                   if (comp.type === 'HEADER') {
                     if (comp.format === 'IMAGE') {
-                      const sampleImg = 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&auto=format&fit=crop&q=80';
+                      // Extrair URL de exemplo do próprio template (Meta retorna em example.header_handle)
+                      let imageUrl = '';
+                      if (comp.example?.header_handle?.[0]) {
+                        imageUrl = comp.example.header_handle[0];
+                        console.log('🖼️ Usando imagem de exemplo do template:', imageUrl);
+                      } else if (comp.example?.header_url?.[0]) {
+                        imageUrl = comp.example.header_url[0];
+                        console.log('🖼️ Usando header_url do template:', imageUrl);
+                      } else {
+                        // Fallback: imagem pública confiável (URL direta sem redirect)
+                        imageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/300px-PNG_transparency_demonstration_1.png';
+                        console.log('⚠️ Template IMAGE sem exemplo, usando fallback genérico');
+                      }
                       components.push({
                         type: 'header',
-                        parameters: [{ type: 'image', image: { link: sampleImg } }]
+                        parameters: [{ type: 'image', image: { link: imageUrl } }]
+                      });
+                    } else if (comp.format === 'VIDEO') {
+                      let videoUrl = '';
+                      if (comp.example?.header_handle?.[0]) {
+                        videoUrl = comp.example.header_handle[0];
+                      } else {
+                        videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
+                      }
+                      components.push({
+                        type: 'header',
+                        parameters: [{ type: 'video', video: { link: videoUrl } }]
                       });
                     } else if (comp.format === 'TEXT') {
                       const textMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
@@ -67,6 +91,7 @@ export const whatsappService = {
                   } else if (comp.type === 'BODY') {
                     const bodyMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
                     if (bodyMatches.length > 0) {
+                      console.log(`📝 Template BODY tem ${bodyMatches.length} variável(is): ${bodyMatches.join(', ')}`);
                       components.push({
                         type: 'body',
                         parameters: bodyMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))

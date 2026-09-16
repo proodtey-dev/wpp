@@ -298,16 +298,18 @@ router.post('/debug-send', async (req, res) => {
       const components: any[] = [];
       for (const comp of templateContract.components) {
         if (comp.type === 'HEADER' && comp.format === 'IMAGE') {
-          // Template com imagem no header — PRECISA enviar imagem
+          // Extrair URL de exemplo do template (example.header_handle)
+          let imageUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/300px-PNG_transparency_demonstration_1.png';
           components.push({
             type: 'header',
-            parameters: [{ type: 'image', image: { link: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&auto=format&fit=crop&q=80' } }]
+            parameters: [{ type: 'image', image: { link: imageUrl } }]
           });
         }
         if (comp.type === 'HEADER' && comp.format === 'VIDEO') {
+          let videoUrl = comp.example?.header_handle?.[0] || 'https://www.w3schools.com/html/mov_bbb.mp4';
           components.push({
             type: 'header',
-            parameters: [{ type: 'video', video: { link: 'https://www.w3schools.com/html/mov_bbb.mp4' } }]
+            parameters: [{ type: 'video', video: { link: videoUrl } }]
           });
         }
         if (comp.type === 'BODY') {
