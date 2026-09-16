@@ -134,31 +134,32 @@ router.post('/send', async (req, res) => {
             if (target.id) {
               await dbService.updateLead(target.id, { status: 'contatado' });
             }
-
-            // Registra a mensagem enviada no Chat / CRM
-            await dbService.saveChatMessage({
-              phone: target.phone,
-              contactName: target.name,
-              sender: 'me',
-              body: text,
-              waMessageId: result.messageId,
-              deliveryStatus: 'sent'
-            });
-
-            // Notifica o Chat em tempo real via SSE
-            broadcastToSSE('new_message', {
-              phone: target.phone,
-              contactName: target.name,
-              sender: 'me',
-              body: text,
-              timestamp: new Date().toISOString(),
-              deliveryStatus: 'sent',
-              waMessageId: result.messageId
-            });
           } else {
             failedCount++;
             await dbService.updateMessageStatus(msgId, 'falhou', result.error);
+            console.error(`❌ Falha no envio da Meta API para ${target.phone}:`, result.error);
           }
+
+          // Registra SEMPRE no Chat / CRM para visualização do disparo
+          await dbService.saveChatMessage({
+            phone: target.phone,
+            contactName: target.name || 'Cliente',
+            sender: 'me',
+            body: text,
+            waMessageId: result.messageId || `msg_${Date.now()}`,
+            deliveryStatus: result.success ? 'sent' : 'failed'
+          });
+
+          // Notifica o Chat em tempo real via SSE
+          broadcastToSSE('new_message', {
+            phone: target.phone,
+            contactName: target.name || 'Cliente',
+            sender: 'me',
+            body: text,
+            timestamp: new Date().toISOString(),
+            deliveryStatus: result.success ? 'sent' : 'failed',
+            waMessageId: result.messageId || `msg_${Date.now()}`
+          });
 
           await dbService.updateCampaign(campaignId, { sent: sentCount, failed: failedCount });
         } catch (err: any) {
