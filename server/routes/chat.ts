@@ -175,6 +175,7 @@ const handleWebhookEvent = async (req: any, res: any) => {
       if (value?.statuses?.[0]) {
         const statusUpdate = value.statuses[0];
         const { id: waMessageId, status, errors } = statusUpdate;
+        console.log(`📬 Webhook Status: msgId=${waMessageId} status=${status} errors=${JSON.stringify(errors || 'nenhum')}`);
 
         if (waMessageId) {
           const deliveryStatus = errors ? 'failed' : status;
@@ -185,9 +186,10 @@ const handleWebhookEvent = async (req: any, res: any) => {
             const errCode = errObj.code;
             const errMsg = errObj.message || errObj.title || 'Falha de entrega no WhatsApp';
             const errDetails = errObj.error_data?.details || '';
+            console.error(`❌ WEBHOOK ERRO DETALHADO: code=${errCode} msg="${errMsg}" details="${errDetails}" raw=${JSON.stringify(errObj)}`);
 
             if (errCode === 131030) {
-              webhookErrText = `[Meta Erro 131030] Seu número na Meta é de TESTE. Adicione o número do destinatário na lista "To Phone Numbers" no painel Meta Developer.`;
+              webhookErrText = `[Meta Erro 131030] Seu número na Meta é de TESTE. Adicione o número do destinatário na lista "To Phone Numbers" no painel Meta Developer > WhatsApp > API Setup.`;
             } else if (errCode === 131026) {
               webhookErrText = `[Meta Erro 131026] Mensagem não entregue. O número destinatário pode não ter WhatsApp ativo ou recusou a entrega.`;
             } else if (errCode === 131047) {

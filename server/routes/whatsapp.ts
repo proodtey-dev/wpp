@@ -234,4 +234,132 @@ router.get('/templates', async (req, res) => {
   }
 });
 
+// 🔍 DIAGNÓSTICO: Envia template de teste e retorna resposta RAW completa da Meta
+router.post('/debug-send', async (req, res) => {
+  try {
+    const { phone, templateName } = req.body;
+    if (!phone || !templateName) {
+      return res.status(400).json({ error: 'phone e templateName são obrigatórios' });
+    }
+
+    const settings = await dbService.getSettings();
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const wabaId = settings.whatsappWabaId || process.env.WHATSAPP_WABA_ID;
+
+    if (!token || !phoneNumberId) {
+      return res.status(400).json({ error: 'Token ou Phone Number ID não configurados' });
+    }
+
+    // 1. Buscar info do número remetente
+    let phoneInfo: any = null;
+    try {
+      const phoneResp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      phoneInfo = await phoneResp.json();
+    } catch (e: any) {
+      phoneInfo = { error: e.message };
+    }
+
+    // 2. Buscar template no WABA
+    let templateContract: any = null;
+    if (wabaId) {
+      try {
+        const tplRes = await whatsappService.getTemplates(wabaId, token!);
+        if (tplRes.success && Array.isArray(tplRes.data)) {
+          templateContract = tplRes.data.find((t: any) => t.name.toLowerCase() === templateName.toLowerCase());
+        }
+      } catch (e: any) {
+        templateContract = { error: e.message };
+      }
+    }
+
+    // 3. Construir payload exato segundo a doc da Meta
+    let formattedTo = phone.replace(/\D/g, '');
+    if (formattedTo.length === 10 || formattedTo.length === 11) {
+      formattedTo = '55' + formattedTo;
+    }
+
+    const lang = templateContract?.language || (templateName === 'hello_world' ? 'en_US' : 'pt_BR');
+
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      to: formattedTo,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: lang }
+      }
+    };
+
+    // Adicionar components se o template tem variáveis
+    if (templateContract && Array.isArray(templateContract.components)) {
+      const components: any[] = [];
+      for (const comp of templateContract.components) {
+        if (comp.type === 'HEADER' && comp.format === 'IMAGE') {
+          // Template com imagem no header — PRECISA enviar imagem
+          components.push({
+            type: 'header',
+            parameters: [{ type: 'image', image: { link: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&auto=format&fit=crop&q=80' } }]
+          });
+        }
+        if (comp.type === 'HEADER' && comp.format === 'VIDEO') {
+          components.push({
+            type: 'header',
+            parameters: [{ type: 'video', video: { link: 'https://www.w3schools.com/html/mov_bbb.mp4' } }]
+          });
+        }
+        if (comp.type === 'BODY') {
+          const vars = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
+          if (vars.length > 0) {
+            components.push({
+              type: 'body',
+              parameters: vars.map(() => ({ type: 'text', text: 'Cliente' }))
+            });
+          }
+        }
+      }
+      if (components.length > 0) {
+        payload.template.components = components;
+      }
+    }
+
+    // 4. Enviar e capturar resposta RAW
+    const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const rawResponse = await response.json();
+
+    res.json({
+      diagnóstico: '🔍 Resultado completo do diagnóstico de envio',
+      remetente: {
+        phoneNumberId,
+        wabaId,
+        infoDoNumero: phoneInfo
+      },
+      templateEncontrado: templateContract ? {
+        nome: templateContract.name,
+        status: templateContract.status,
+        idioma: templateContract.language,
+        categoria: templateContract.category,
+        componentes: templateContract.components
+      } : 'TEMPLATE NÃO ENCONTRADO NO WABA — Verifique o nome e WABA ID',
+      payloadEnviado: payload,
+      respostaMetaAPI: {
+        httpStatus: response.status,
+        httpOk: response.ok,
+        body: rawResponse
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro no diagnóstico', details: error.message });
+  }
+});
+
 export default router;
