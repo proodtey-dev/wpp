@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Send, Upload, CheckCircle2, AlertTriangle, Trash2, Copy, Check, Filter, Phone } from 'lucide-react';
-import { sendWhatsApp } from '../lib/api';
+import { sendWhatsApp, clearAllData } from '../lib/api';
 
 const STORAGE_KEY = 'wpp_bulk_sent_numbers';
 
@@ -267,10 +267,23 @@ export default function BulkSender() {
               <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>{sentNumbers.length} números</span>
             </div>
             {sentNumbers.length > 0 && (
-              <button className="btn btn-danger btn-sm" style={{ width: '100%' }} onClick={clearHistory}>
+              <button className="btn btn-danger btn-sm" style={{ width: '100%', marginBottom: 8 }} onClick={clearHistory}>
                 <Trash2 size={13} /> Limpar Histórico do Navegador
               </button>
             )}
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%', color: 'var(--red)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              onClick={async () => {
+                if (confirm('Atenção: Isso vai apagar TODOS os chats, leads e campanhas antigas do servidor para deixar limpo. Deseja continuar?')) {
+                  await clearAllData();
+                  alert('Todos os chats e conversas antigas foram limpos com sucesso!');
+                  window.location.reload();
+                }
+              }}
+            >
+              <Trash2 size={13} /> Limpar Chats e CRM (Servidor)
+            </button>
           </div>
         </div>
 

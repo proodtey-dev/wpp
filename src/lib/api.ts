@@ -90,6 +90,10 @@ export async function testWhatsAppApi() {
   return fetch(`${API_BASE}/whatsapp/test-api`).then(r => r.json());
 }
 
+export async function clearAllData() {
+  return fetch(`${API_BASE}/chat/clear-all`, { method: 'POST' }).then(r => r.json());
+}
+
 // Chat / CRM
 export async function getConversations() {
   return fetch(`${API_BASE}/chat/conversations`).then(r => r.json());

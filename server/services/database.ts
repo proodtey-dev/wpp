@@ -480,13 +480,23 @@ export const dbService = {
     }
   },
 
-  getAllPushSubscriptions: async (): Promise<Array<{ endpoint: string; keys: string }>> => {
+  clearAllData: async () => {
     await ensureInit();
+    const statements = [
+      'DELETE FROM chat_messages',
+      'DELETE FROM messages',
+      'DELETE FROM campaigns',
+      'DELETE FROM leads'
+    ];
     if (useTurso) {
-      const res = await client.execute('SELECT endpoint, keys FROM push_subscriptions');
-      return res.rows as unknown as Array<{ endpoint: string; keys: string }>;
+      for (const stmt of statements) {
+        await client.execute(stmt);
+      }
     } else {
-      return db.prepare('SELECT endpoint, keys FROM push_subscriptions').all() as Array<{ endpoint: string; keys: string }>;
+      for (const stmt of statements) {
+        db.prepare(stmt).run();
+      }
     }
+    return { success: true };
   }
 };

@@ -203,6 +203,17 @@ router.get('/webhook', handleWebhookVerification);
 router.post('/', handleWebhookEvent);
 router.post('/webhook', handleWebhookEvent);
 
+// Clear all chat and CRM data
+router.post('/clear-all', async (req, res) => {
+  try {
+    await dbService.clearAllData();
+    broadcastToSSE('data_cleared', {});
+    res.json({ success: true, message: 'Todos os chats e CRM foram limpos!' });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // List all chat conversations
 router.get('/conversations', async (req, res) => {
   try {
