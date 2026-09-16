@@ -17,27 +17,31 @@ export const whatsappService = {
 
       const langCode = templateName === 'hello_world' ? 'en_US' : 'pt_BR';
 
-      const buildPayload = (useComponents: boolean, lang: string) => {
-        const components: any[] = [];
-        if (useComponents && params && params.length > 0) {
-          components.push({
+      const buildPayload = (paramCount: number, lang: string) => {
+        const templateObj: any = {
+          name: templateName,
+          language: { code: lang }
+        };
+
+        if (paramCount > 0) {
+          const actualParams = (params && params.length > 0) ? params : ['Cliente'];
+          const paramList = Array(paramCount).fill(0).map((_, i) => actualParams[i] || actualParams[0] || 'Cliente');
+          templateObj.components = [{
             type: 'body',
-            parameters: params.map(p => ({ type: 'text', text: String(p) }))
-          });
+            parameters: paramList.map(p => ({ type: 'text', text: String(p) }))
+          }];
         }
+
         return {
           messaging_product: 'whatsapp',
           to: formattedTo,
           type: 'template',
-          template: {
-            name: templateName,
-            language: { code: lang },
-            components
-          }
+          template: templateObj
         };
       };
 
       const doFetch = async (payload: any) => {
+        console.log(`📤 Enviando Template Meta "${payload.template.name}" (idioma=${payload.template.language.code}, params=${payload.template.components ? payload.template.components[0]?.parameters?.length : 0}) para ${payload.to}...`);
         const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
           method: 'POST',
           headers: {
@@ -50,19 +54,25 @@ export const whatsappService = {
         return { ok: response.ok, data };
       };
 
-      // 1ª Tentativa: Sem componentes (0 parâmetros) - Padrão para templates de texto fixo como Dorama
-      let res = await doFetch(buildPayload(false, langCode));
+      // 1ª Tentativa: Sem a propriedade components (0 parâmetros) - Padrão Meta para textos fixos
+      let res = await doFetch(buildPayload(0, langCode));
 
-      // 2ª Tentativa: Se a Meta exigir parâmetros (erro 132000), tenta enviando os parâmetros
+      // 2ª Tentativa: Se der erro 132000 (exige 1 parâmetro), tenta enviando 1 parâmetro
       if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
-        console.log(`⚠️ Template "${templateName}" exige parâmetros. Tentando com componentes de texto...`);
-        res = await doFetch(buildPayload(true, langCode));
+        console.log(`⚠️ Tentativa com 1 parâmetro para "${templateName}"...`);
+        res = await doFetch(buildPayload(1, langCode));
       }
 
-      // 3ª Tentativa: Se falhar e o idioma for pt_BR, tenta no idioma en_US
+      // 3ª Tentativa: Se ainda der erro 132000, tenta com 2 parâmetros
+      if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
+        console.log(`⚠️ Tentativa com 2 parâmetros para "${templateName}"...`);
+        res = await doFetch(buildPayload(2, langCode));
+      }
+
+      // 4ª Tentativa: Se falhar por erro de idioma (132001/100), tenta sem componentes em en_US
       if (!res.ok && langCode === 'pt_BR' && (res.data.error?.code === 132001 || res.data.error?.code === 100)) {
-        console.log(`⚠️ Tentando template "${templateName}" no idioma en_US...`);
-        res = await doFetch(buildPayload(false, 'en_US'));
+        console.log(`⚠️ Tentando template "${templateName}" no idioma en_US (sem parâmetros)...`);
+        res = await doFetch(buildPayload(0, 'en_US'));
       }
 
       // Se falhar por conta do 9º dígito no BR
