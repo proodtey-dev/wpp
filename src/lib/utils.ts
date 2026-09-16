@@ -98,7 +98,7 @@ Percebi que você ainda não possui um site de portfólio, e ter uma página onl
 
 Consigo fazer o site gratuitamente e você só paga R$ 200,00 após aprovar o resultado, o que acha?
 
-Caso queira, posso te mandar um exemplo de site na área de arquitetura e reformas que eu mesmo já fiz para você dar uma olhada?`
+Caso queira, posso te mandar um exemplo de site na área de arquitetura e reformas que eu mesmo já fiz para você dar uma olhada?`,
   dorama: `Opa {nome}, tudo certo? 👋
 
 Boa tarde! Sou desenvolvedor web e crio sites modernos e plataformas exclusivas.
