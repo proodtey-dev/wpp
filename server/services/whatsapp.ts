@@ -5,7 +5,7 @@ interface WhatsAppConfig {
 }
 
 export const whatsappService = {
-  sendTemplateMessage: async (to: string, templateName: string, params: string[], config: WhatsAppConfig) => {
+  sendTemplateMessage: async (to: string, templateName: string, params: string[], config: WhatsAppConfig, imageUrl?: string) => {
     try {
       let formattedTo = to.replace(/\D/g, '');
       if (formattedTo.length === 10 || formattedTo.length === 11) {
@@ -14,6 +14,34 @@ export const whatsappService = {
 
       const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
       const token = config.token || process.env.WHATSAPP_TOKEN;
+
+      const components: any[] = [];
+
+      // Se o template for 'dorama' ou tiver imagem configurada, adiciona o header de imagem exigido pela Meta
+      const defaultDoramaImage = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80';
+      const headerImage = imageUrl || (templateName === 'dorama' ? defaultDoramaImage : undefined);
+
+      if (headerImage) {
+        components.push({
+          type: 'header',
+          parameters: [
+            {
+              type: 'image',
+              image: { link: headerImage }
+            }
+          ]
+        });
+      }
+
+      if (params.length > 0 && templateName !== 'dorama') {
+        components.push({
+          type: 'body',
+          parameters: params.map(p => ({
+            type: 'text',
+            text: p
+          }))
+        });
+      }
 
       const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
         method: 'POST',
@@ -30,15 +58,7 @@ export const whatsappService = {
             language: {
               code: 'pt_BR'
             },
-            components: params.length > 0 ? [
-              {
-                type: 'body',
-                parameters: params.map(p => ({
-                  type: 'text',
-                  text: p
-                }))
-              }
-            ] : []
+            components
           }
         })
       });

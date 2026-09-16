@@ -4,15 +4,17 @@ import { sendWhatsApp, clearAllData } from '../lib/api';
 
 const STORAGE_KEY = 'wpp_bulk_sent_numbers';
 
-export const DORAMA_TEMPLATE_TEXT = `Opa {nome}, tudo certo? 👋
+export const DORAMA_TEMPLATE_TEXT = `🔥 *+1.500 DORAMAS por apenas R$10*
 
-Boa tarde! Sou desenvolvedor web e crio sites modernos e plataformas exclusivas.
+Se você é fã de doramas, olha isso 👀
 
-Vi o perfil de vocês e preparei um modelo especial focado em alta conversão no estilo Dorama.
+Montei um acesso com *mais de 1.500 doramas*, é simplesmente a Netflix dos Doramas! Incluindo vários títulos conhecidos e opções para todos os gostos.
 
-Montei uma demonstração exclusiva para vocês verem como ficaria.
+💰 *Acesso completo: R$10,00*
 
-Posso te enviar o link?`;
+É pagamento único, sem mensalidade.
+
+Se quiser ver como funciona, me responde *"DORAMAS"* que ou te mando os detalhes. 🍿❤️`;
 
 export default function BulkSender() {
   const [rawInput, setRawInput] = useState('');
