@@ -15,33 +15,11 @@ export const whatsappService = {
       const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
       const token = config.token || process.env.WHATSAPP_TOKEN;
 
+      const wabaId = config.wabaId || process.env.WHATSAPP_WABA_ID || '1394332478791215';
       const langCode = templateName === 'hello_world' ? 'en_US' : 'pt_BR';
 
-      const buildPayload = (paramCount: number, lang: string) => {
-        const templateObj: any = {
-          name: templateName,
-          language: { code: lang }
-        };
-
-        if (paramCount > 0) {
-          const actualParams = (params && params.length > 0) ? params : ['Cliente'];
-          const paramList = Array(paramCount).fill(0).map((_, i) => actualParams[i] || actualParams[0] || 'Cliente');
-          templateObj.components = [{
-            type: 'body',
-            parameters: paramList.map(p => ({ type: 'text', text: String(p) }))
-          }];
-        }
-
-        return {
-          messaging_product: 'whatsapp',
-          to: formattedTo,
-          type: 'template',
-          template: templateObj
-        };
-      };
-
       const doFetch = async (payload: any) => {
-        console.log(`📤 Enviando Template Meta "${payload.template.name}" (idioma=${payload.template.language.code}, params=${payload.template.components ? payload.template.components[0]?.parameters?.length : 0}) para ${payload.to}...`);
+        console.log(`📤 Enviando Template Meta "${payload.template.name}" (idioma=${payload.template.language.code}) para ${payload.to}...`, JSON.stringify(payload.template));
         const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
           method: 'POST',
           headers: {
@@ -54,32 +32,126 @@ export const whatsappService = {
         return { ok: response.ok, data };
       };
 
-      // 1ª Tentativa: Sem a propriedade components (0 parâmetros) - Padrão Meta para textos fixos
-      let res = await doFetch(buildPayload(0, langCode));
+      // 🔍 Tentar inspecionar o contrato exato do Template no Gerenciador da Meta
+      let exactPayload: any = null;
+      if (wabaId && token) {
+        try {
+          const templatesRes = await whatsappService.getTemplates(wabaId, token);
+          if (templatesRes.success && Array.isArray(templatesRes.data)) {
+            const match = templatesRes.data.find((t: any) =>
+              t.name === templateName || t.name.toLowerCase() === templateName.toLowerCase()
+            );
+            if (match) {
+              console.log('🎯 Contrato do Template encontrado no WABA Meta:', match.name, 'Status:', match.status, 'Idioma:', match.language);
+              const components: any[] = [];
+              const actualParams = (params && params.length > 0) ? params : ['Cliente'];
 
-      // 2ª Tentativa: Se der erro 132000 (exige 1 parâmetro), tenta enviando 1 parâmetro
-      if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
-        console.log(`⚠️ Tentativa com 1 parâmetro para "${templateName}"...`);
-        res = await doFetch(buildPayload(1, langCode));
+              if (Array.isArray(match.components)) {
+                for (const comp of match.components) {
+                  if (comp.type === 'HEADER') {
+                    if (comp.format === 'IMAGE') {
+                      const sampleImg = 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&auto=format&fit=crop&q=80';
+                      components.push({
+                        type: 'header',
+                        parameters: [{ type: 'image', image: { link: sampleImg } }]
+                      });
+                    } else if (comp.format === 'TEXT') {
+                      const textMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
+                      if (textMatches.length > 0) {
+                        components.push({
+                          type: 'header',
+                          parameters: textMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
+                        });
+                      }
+                    }
+                  } else if (comp.type === 'BODY') {
+                    const bodyMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
+                    if (bodyMatches.length > 0) {
+                      components.push({
+                        type: 'body',
+                        parameters: bodyMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
+                      });
+                    }
+                  }
+                }
+              }
+
+              const templateObj: any = {
+                name: match.name,
+                language: { code: match.language || 'pt_BR' }
+              };
+              if (components.length > 0) {
+                templateObj.components = components;
+              }
+
+              exactPayload = {
+                messaging_product: 'whatsapp',
+                to: formattedTo,
+                type: 'template',
+                template: templateObj
+              };
+            }
+          }
+        } catch (e: any) {
+          console.warn('Aviso ao consultar WABA Meta:', e.message);
+        }
       }
 
-      // 3ª Tentativa: Se ainda der erro 132000, tenta com 2 parâmetros
-      if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
-        console.log(`⚠️ Tentativa com 2 parâmetros para "${templateName}"...`);
-        res = await doFetch(buildPayload(2, langCode));
+      let res: any = null;
+
+      // 1ª Tentativa: Usar o payload exato inspecionado do WABA Meta se encontrado
+      if (exactPayload) {
+        console.log('⚡ Disparando via Contrato Inspecionado do Meta WABA...');
+        res = await doFetch(exactPayload);
       }
 
-      // 4ª Tentativa: Se falhar por erro de idioma (132001/100), tenta sem componentes em en_US
-      if (!res.ok && langCode === 'pt_BR' && (res.data.error?.code === 132001 || res.data.error?.code === 100)) {
-        console.log(`⚠️ Tentando template "${templateName}" no idioma en_US (sem parâmetros)...`);
-        res = await doFetch(buildPayload(0, 'en_US'));
+      // Função auxiliar para montar payloads manuais de fallback
+      const buildFallbackPayload = (paramCount: number, lang: string) => {
+        const templateObj: any = {
+          name: templateName,
+          language: { code: lang }
+        };
+        if (paramCount > 0) {
+          const actualParams = (params && params.length > 0) ? params : ['Cliente'];
+          const paramList = Array(paramCount).fill(0).map((_, i) => actualParams[i] || actualParams[0] || 'Cliente');
+          templateObj.components = [{
+            type: 'body',
+            parameters: paramList.map(p => ({ type: 'text', text: String(p) }))
+          }];
+        }
+        return {
+          messaging_product: 'whatsapp',
+          to: formattedTo,
+          type: 'template',
+          template: templateObj
+        };
+      };
+
+      // Se a 1ª tentativa falhou ou não tinha exactPayload: tenta 0 params, 1 param, 2 params, en_US
+      if (!res || !res.ok) {
+        if (!res) res = await doFetch(buildFallbackPayload(0, langCode));
+
+        if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
+          console.log(`⚠️ Fallback 1: Tentativa com 1 parâmetro para "${templateName}"...`);
+          res = await doFetch(buildFallbackPayload(1, langCode));
+        }
+
+        if (!res.ok && (res.data.error?.code === 132000 || String(res.data.error?.message).includes('parameters'))) {
+          console.log(`⚠️ Fallback 2: Tentativa com 2 parâmetros para "${templateName}"...`);
+          res = await doFetch(buildFallbackPayload(2, langCode));
+        }
+
+        if (!res.ok && langCode === 'pt_BR' && (res.data.error?.code === 132001 || res.data.error?.code === 100)) {
+          console.log(`⚠️ Fallback 3: Tentando idioma en_US para "${templateName}"...`);
+          res = await doFetch(buildFallbackPayload(0, 'en_US'));
+        }
       }
 
       // Se falhar por conta do 9º dígito no BR
       if (!res.ok && formattedTo.startsWith('55') && formattedTo.length === 12) {
         const altPhone = formattedTo.slice(0, 4) + '9' + formattedTo.slice(4);
-        console.log(`⚠️ Tentando template para número com 9º dígito: ${altPhone}...`);
-        const altPayload = buildPayload(true, langCode);
+        console.log(`⚠️ Tentando com 9º dígito: ${altPhone}...`);
+        const altPayload = exactPayload ? { ...exactPayload, to: altPhone } : buildFallbackPayload(0, langCode);
         altPayload.to = altPhone;
         res = await doFetch(altPayload);
       }
