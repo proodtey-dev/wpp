@@ -15,42 +15,87 @@ export const whatsappService = {
       const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
       const token = config.token || process.env.WHATSAPP_TOKEN;
 
-      const components: any[] = [];
-      if (params.length > 0 && templateName !== 'dorama') {
-        components.push({
-          type: 'body',
-          parameters: params.map(p => ({ type: 'text', text: p }))
-        });
-      }
+      const langCode = templateName === 'hello_world' ? 'en_US' : 'pt_BR';
 
-      const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const buildPayload = (useComponents: boolean, lang: string) => {
+        const components: any[] = [];
+        if (useComponents && params && params.length > 0) {
+          components.push({
+            type: 'body',
+            parameters: params.map(p => ({ type: 'text', text: String(p) }))
+          });
+        }
+        return {
           messaging_product: 'whatsapp',
           to: formattedTo,
           type: 'template',
           template: {
             name: templateName,
-            language: { code: 'pt_BR' },
+            language: { code: lang },
             components
           }
-        })
-      });
+        };
+      };
 
-      const data = await response.json();
-      if (!response.ok) {
-        const fullErr = data.error
-          ? `[Meta Error ${data.error.code}] ${data.error.message} (${data.error.error_user_title || ''} ${data.error.error_user_msg || ''})`
-          : 'Erro ao enviar template na Meta API';
-        console.error('Erro Meta API Template detalhado:', JSON.stringify(data, null, 2));
-        return { success: false, error: fullErr };
+      const doFetch = async (payload: any) => {
+        const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        return { ok: response.ok, data };
+      };
+
+      // Tentativa 1: Com parâmetros e idioma padrão
+      let res = await doFetch(buildPayload(true, langCode));
+
+      // Se falhar por causa de número de parâmetros ou formato, tenta sem componentes (sem parâmetros)
+      if (!res.ok && res.data.error?.code === 132000) {
+        console.log(`⚠️ Tentando template "${templateName}" sem parâmetros...`);
+        res = await doFetch(buildPayload(false, langCode));
       }
 
-      return { success: true, messageId: data.messages?.[0]?.id };
+      // Se falhar e idioma for pt_BR, tenta com en_US (alguns templates padrão vêm em en_US)
+      if (!res.ok && langCode === 'pt_BR' && (res.data.error?.code === 132001 || res.data.error?.code === 100)) {
+        console.log(`⚠️ Tentando template "${templateName}" no idioma en_US...`);
+        res = await doFetch(buildPayload(false, 'en_US'));
+      }
+
+      // Se falhar por conta do 9º dígito no BR
+      if (!res.ok && formattedTo.startsWith('55') && formattedTo.length === 12) {
+        const altPhone = formattedTo.slice(0, 4) + '9' + formattedTo.slice(4);
+        console.log(`⚠️ Tentando template para número com 9º dígito: ${altPhone}...`);
+        const altPayload = buildPayload(true, langCode);
+        altPayload.to = altPhone;
+        res = await doFetch(altPayload);
+      }
+
+      if (!res.ok) {
+        const errObj = res.data.error || {};
+        const code = errObj.code;
+        const msg = errObj.message || 'Erro ao enviar template na Meta API';
+        console.error('❌ Erro Meta API Template detalhado:', JSON.stringify(res.data, null, 2));
+
+        let formattedError = `[Meta Erro ${code || ''}] ${msg}`;
+
+        if (code === 132001) {
+          formattedError = `Template "${templateName}" não encontrado na sua conta Meta WhatsApp. Verifique se o nome exato "${templateName}" foi aprovado no Gerenciador do WhatsApp.`;
+        } else if (code === 131047) {
+          formattedError = `Janela de 24h Meta: O cliente não interagiu nas últimas 24h. Use um Template aprovado para iniciar contato.`;
+        } else if (code === 131026) {
+          formattedError = `Número ${formattedTo} não possui conta no WhatsApp.`;
+        } else if (code === 190) {
+          formattedError = `Token da Meta API expirado ou inválido. Atualize o Token nas Configurações.`;
+        }
+
+        return { success: false, error: formattedError };
+      }
+
+      return { success: true, messageId: res.data.messages?.[0]?.id };
     } catch (error: any) {
       console.error('Erro ao enviar mensagem no WhatsApp:', error);
       return { success: false, error: error.message };
@@ -98,7 +143,18 @@ export const whatsappService = {
 
       if (!res.ok) {
         console.error('❌ Erro na API Meta WhatsApp:', res.data);
-        const errMsg = res.data.error?.message || res.data.error?.error_data?.details || 'Erro ao enviar mensagem';
+        const errObj = res.data.error || {};
+        const code = errObj.code;
+        let errMsg = errObj.message || errObj.error_data?.details || 'Erro ao enviar mensagem';
+
+        if (code === 131047 || errMsg.includes('24 hours') || errMsg.includes('re-engagement')) {
+          errMsg = 'Janela de 24h Meta: O cliente ainda não respondeu nas últimas 24h. Para iniciar a conversa, envie um Template Aprovado (Proposta/Dorama).';
+        } else if (code === 190) {
+          errMsg = 'Token da Meta API expirado ou inválido. Atualize o Token nas Configurações.';
+        } else if (code === 131026) {
+          errMsg = 'Número não possui WhatsApp ativo.';
+        }
+
         return { success: false, error: errMsg };
       }
 

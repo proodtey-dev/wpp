@@ -111,6 +111,14 @@ export async function sendChatMessage(data: { phone: string; body: string; conta
   }).then(r => r.json());
 }
 
+export async function sendChatTemplateMessage(data: { phone: string; templateName: string; contactName?: string; messageText?: string }) {
+  return fetch(`${API_BASE}/chat/send-template`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
 export async function sendChatAudioMessage(data: { phone: string; audioBase64: string; mimeType?: string; contactName?: string }) {
   return fetch(`${API_BASE}/chat/send-audio`, {
     method: 'POST',

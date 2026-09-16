@@ -4,7 +4,7 @@ import {
   Clock, RefreshCw, ArrowLeft, Tag, Mic, Square, Trash2, Sparkles, Map, MapPin
 } from 'lucide-react';
 import {
-  getConversations, getChatMessages, sendChatMessage, sendChatAudioMessage,
+  getConversations, getChatMessages, sendChatMessage, sendChatTemplateMessage, sendChatAudioMessage,
   updateLeadStatusByPhone, CRM_STAGES, suggestAIChatReply
 } from '../lib/api';
 import { convertBlobToMp3 } from '../lib/mp3Encoder';
@@ -269,17 +269,72 @@ const Chat = () => {
 
       setMessages(prev => prev.map(m =>
         m.id === tempId
-          ? { ...m, deliveryStatus: result.deliveryStatus || 'sent', waMessageId: result.result?.messageId }
+          ? { ...m, deliveryStatus: result.deliveryStatus || 'sent', waMessageId: result.result?.messageId, error: result.error }
           : m
       ));
+
+      if (result.error) {
+        console.warn('Erro retornado pela Meta API:', result.error);
+      }
 
       setConversations(prev => prev.map(c =>
         c.phone === selectedPhone
           ? { ...c, lastMessage: text, timestamp: new Date().toISOString() }
           : c
       ));
-    } catch {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, deliveryStatus: 'failed' } : m));
+    } catch (e: any) {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, deliveryStatus: 'failed', error: e.message } : m));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendTemplate = async (templateName: string, templateText?: string) => {
+    if (!selectedPhone || sending) return;
+    const currentConv = conversations.find(c => c.phone === selectedPhone);
+    setSending(true);
+
+    const textToDisplay = templateText || `[Template Meta enviado: ${templateName}]`;
+    const tempId = Date.now();
+    const tempMsg = {
+      id: tempId,
+      phone: selectedPhone,
+      sender: 'me',
+      body: textToDisplay,
+      deliveryStatus: 'sending',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(scrollToBottom, 50);
+
+    try {
+      const result = await sendChatTemplateMessage({
+        phone: selectedPhone,
+        templateName,
+        contactName: currentConv?.contactName,
+        messageText: textToDisplay
+      });
+
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, deliveryStatus: result.deliveryStatus || 'sent', waMessageId: result.result?.messageId, error: result.error }
+          : m
+      ));
+
+      if (result.error) {
+        alert(`⚠️ Aviso ao enviar Template "${templateName}":\n\n${result.error}`);
+      } else {
+        alert(`✅ Template "${templateName}" enviado com sucesso via Meta WhatsApp API!`);
+      }
+
+      setConversations(prev => prev.map(c =>
+        c.phone === selectedPhone
+          ? { ...c, lastMessage: textToDisplay, timestamp: new Date().toISOString() }
+          : c
+      ));
+    } catch (err: any) {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, deliveryStatus: 'failed', error: err.message } : m));
+      alert(`Erro ao disparar template: ${err.message}`);
     } finally {
       setSending(false);
     }
@@ -591,6 +646,32 @@ const Chat = () => {
 
             {/* CRM Stage Selector Pill + Botão Ver no Maps */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {/* Botão Enviar Template Meta (para contatos fora da janela de 24h) */}
+              <div style={{ position: 'relative' }}>
+                <select
+                  className="btn btn-secondary btn-sm"
+                  style={{ background: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)', fontSize: 11, padding: '4px 8px', fontWeight: 600 }}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    handleSendTemplate(val);
+                    e.target.value = '';
+                  }}
+                  title="Disparar Template Aprovado da Meta (necessário para iniciar contato fora da janela de 24h)"
+                >
+                  <option value="" disabled style={{ background: '#111213', color: '#888' }}>⚡ Enviar Template Meta</option>
+                  <option value="dorama" style={{ background: '#111213', color: '#fff' }}>🎬 Dorama</option>
+                  <option value="hamburgueria" style={{ background: '#111213', color: '#fff' }}>🍔 Hamburgueria</option>
+                  <option value="pizzaria" style={{ background: '#111213', color: '#fff' }}>🍕 Pizzaria</option>
+                  <option value="arquiteto" style={{ background: '#111213', color: '#fff' }}>📐 Arquiteto</option>
+                  <option value="odonto" style={{ background: '#111213', color: '#fff' }}>🦷 Odonto</option>
+                  <option value="advocacia" style={{ background: '#111213', color: '#fff' }}>⚖️ Advocacia</option>
+                  <option value="contabilidade" style={{ background: '#111213', color: '#fff' }}>📊 Contabilidade</option>
+                  <option value="hello_world" style={{ background: '#111213', color: '#fff' }}>🌐 hello_world (Padrão Meta)</option>
+                </select>
+              </div>
+
               {/* Botão Ver no Google Maps */}
               <a
                 href={getMapsUrl()}

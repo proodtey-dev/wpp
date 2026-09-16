@@ -111,16 +111,18 @@ const initPromise = (async () => {
     for (const stmt of statements) {
       await client.execute(stmt);
     }
-    // Migration: adicionar colunas de mídia caso não existam
+    // Migration: adicionar colunas de mídia e erro caso não existam
     try { await client.execute('ALTER TABLE chat_messages ADD COLUMN mediaUrl TEXT'); } catch {}
     try { await client.execute('ALTER TABLE chat_messages ADD COLUMN mediaType TEXT'); } catch {}
+    try { await client.execute('ALTER TABLE chat_messages ADD COLUMN error TEXT'); } catch {}
   } else {
     for (const stmt of statements) {
       db.exec(stmt);
     }
-    // Migration: adicionar colunas de mídia caso não existam
+    // Migration: adicionar colunas de mídia e erro caso não existam
     try { db.exec('ALTER TABLE chat_messages ADD COLUMN mediaUrl TEXT'); } catch {}
     try { db.exec('ALTER TABLE chat_messages ADD COLUMN mediaType TEXT'); } catch {}
+    try { db.exec('ALTER TABLE chat_messages ADD COLUMN error TEXT'); } catch {}
   }
 })().catch(err => console.error('Erro ao inicializar tabelas:', err));
 
@@ -313,31 +315,31 @@ export const dbService = {
   },
 
   // Chat / CRM
-  saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string; mediaUrl?: string; mediaType?: string }) => {
+  saveChatMessage: async (msg: { phone: string; contactName?: string; sender: 'user' | 'me'; body: string; waMessageId?: string; deliveryStatus?: string; mediaUrl?: string; mediaType?: string; error?: string }) => {
     await ensureInit();
     const cleanPhone = msg.phone.replace(/\D/g, '');
     if (useTurso) {
       await client.execute({
-        sql: `INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null]
+        sql: `INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null, msg.error || null]
       });
     } else {
       const stmt = db.prepare(`
-        INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO chat_messages (phone, contactName, sender, body, waMessageId, deliveryStatus, mediaUrl, mediaType, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null);
+      stmt.run(cleanPhone, msg.contactName || null, msg.sender, msg.body, msg.waMessageId || null, msg.deliveryStatus || 'sent', msg.mediaUrl || null, msg.mediaType || null, msg.error || null);
     }
   },
 
-  updateChatMessageDelivery: async (waMessageId: string, deliveryStatus: string) => {
+  updateChatMessageDelivery: async (waMessageId: string, deliveryStatus: string, error?: string) => {
     if (useTurso) {
       await client.execute({
-        sql: 'UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?',
-        args: [deliveryStatus, waMessageId]
+        sql: 'UPDATE chat_messages SET deliveryStatus = ?, error = COALESCE(?, error) WHERE waMessageId = ?',
+        args: [deliveryStatus, error || null, waMessageId]
       });
     } else {
-      db.prepare('UPDATE chat_messages SET deliveryStatus = ? WHERE waMessageId = ?').run(deliveryStatus, waMessageId);
+      db.prepare('UPDATE chat_messages SET deliveryStatus = ?, error = COALESCE(?, error) WHERE waMessageId = ?').run(deliveryStatus, error || null, waMessageId);
     }
   },
 

@@ -257,15 +257,17 @@ router.post('/send', async (req, res) => {
     });
 
     const deliveryStatus = waResult.success ? 'sent' : 'failed';
+    const errorMsg = waResult.error;
 
-    // Save to database with delivery status
+    // Save to database with delivery status and error
     await dbService.saveChatMessage({
       phone,
       contactName,
       sender: 'me',
       body,
       waMessageId: waResult.messageId,
-      deliveryStatus
+      deliveryStatus,
+      error: errorMsg
     });
 
     // Broadcast to SSE clients
@@ -276,10 +278,64 @@ router.post('/send', async (req, res) => {
       body,
       timestamp: new Date().toISOString(),
       deliveryStatus,
-      waMessageId: waResult.messageId
+      waMessageId: waResult.messageId,
+      error: errorMsg
     });
 
-    res.json({ success: waResult.success, result: waResult, deliveryStatus, error: waResult.error });
+    res.json({ success: waResult.success, result: waResult, deliveryStatus, error: errorMsg });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Send an approved Meta Template directly in chat
+router.post('/send-template', async (req, res) => {
+  try {
+    const { phone, templateName, contactName, messageText } = req.body;
+    if (!phone || !templateName) {
+      return res.status(400).json({ error: 'phone e templateName são obrigatórios' });
+    }
+
+    const settings = await dbService.getSettings();
+    const token = settings.whatsappToken || process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = settings.whatsappPhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!token || !phoneNumberId) {
+      return res.status(400).json({ error: 'WhatsApp API não configurada' });
+    }
+
+    const nameParam = contactName || 'Cliente';
+    const waResult = await whatsappService.sendTemplateMessage(phone, templateName, [nameParam], {
+      token,
+      phoneNumberId
+    });
+
+    const deliveryStatus = waResult.success ? 'sent' : 'failed';
+    const textBody = messageText || `[Template Meta: ${templateName}]`;
+    const errorMsg = waResult.error;
+
+    await dbService.saveChatMessage({
+      phone,
+      contactName,
+      sender: 'me',
+      body: textBody,
+      waMessageId: waResult.messageId,
+      deliveryStatus,
+      error: errorMsg
+    });
+
+    broadcastToSSE('new_message', {
+      phone,
+      contactName,
+      sender: 'me',
+      body: textBody,
+      timestamp: new Date().toISOString(),
+      deliveryStatus,
+      waMessageId: waResult.messageId,
+      error: errorMsg
+    });
+
+    res.json({ success: waResult.success, result: waResult, deliveryStatus, error: errorMsg });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
