@@ -178,11 +178,31 @@ const handleWebhookEvent = async (req: any, res: any) => {
 
         if (waMessageId) {
           const deliveryStatus = errors ? 'failed' : status;
-          await dbService.updateChatMessageDelivery(waMessageId, deliveryStatus);
+          let webhookErrText: string | undefined = undefined;
+
+          if (errors && errors.length > 0) {
+            const errObj = errors[0];
+            const errCode = errObj.code;
+            const errMsg = errObj.message || errObj.title || 'Falha de entrega no WhatsApp';
+            const errDetails = errObj.error_data?.details || '';
+
+            if (errCode === 131030) {
+              webhookErrText = `[Meta Erro 131030] Seu número na Meta é de TESTE. Adicione o número do destinatário na lista "To Phone Numbers" no painel Meta Developer.`;
+            } else if (errCode === 131026) {
+              webhookErrText = `[Meta Erro 131026] Mensagem não entregue. O número destinatário pode não ter WhatsApp ativo ou recusou a entrega.`;
+            } else if (errCode === 131047) {
+              webhookErrText = `[Meta Erro 131047] Janela de 24h expirada: O cliente precisa responder ou enviar um Template Aprovado.`;
+            } else {
+              webhookErrText = `[Meta Erro ${errCode || ''}] ${errMsg} ${errDetails}`;
+            }
+          }
+
+          await dbService.updateChatMessageDelivery(waMessageId, deliveryStatus, webhookErrText);
 
           broadcastToSSE('message_status', {
             waMessageId,
-            deliveryStatus
+            deliveryStatus,
+            error: webhookErrText
           });
         }
       }

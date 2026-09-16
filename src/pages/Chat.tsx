@@ -199,9 +199,9 @@ const Chat = () => {
       });
 
       es.addEventListener('message_status', (e: MessageEvent) => {
-        const { waMessageId, deliveryStatus } = JSON.parse(e.data);
+        const { waMessageId, deliveryStatus, error } = JSON.parse(e.data);
         setMessages(prev => prev.map(m =>
-          m.waMessageId === waMessageId ? { ...m, deliveryStatus } : m
+          m.waMessageId === waMessageId ? { ...m, deliveryStatus, error: error || m.error } : m
         ));
       });
 
