@@ -43,9 +43,11 @@ export const whatsappService = {
 
       const data = await response.json();
       if (!response.ok) {
-        const errMsg = data.error?.message || data.error?.error_data?.details || 'Erro ao enviar template na Meta API';
-        console.error('Erro Meta API Template:', data);
-        return { success: false, error: errMsg };
+        const fullErr = data.error
+          ? `[Meta Error ${data.error.code}] ${data.error.message} (${data.error.error_user_title || ''} ${data.error.error_user_msg || ''})`
+          : 'Erro ao enviar template na Meta API';
+        console.error('Erro Meta API Template detalhado:', JSON.stringify(data, null, 2));
+        return { success: false, error: fullErr };
       }
 
       return { success: true, messageId: data.messages?.[0]?.id };
