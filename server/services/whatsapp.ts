@@ -5,7 +5,7 @@ interface WhatsAppConfig {
 }
 
 export const whatsappService = {
-  sendTemplateMessage: async (to: string, templateName: string, params: string[], config: WhatsAppConfig, imageUrl?: string) => {
+  sendTemplateMessage: async (to: string, templateName: string, params: string[], config: WhatsAppConfig) => {
     try {
       let formattedTo = to.replace(/\D/g, '');
       if (formattedTo.length === 10 || formattedTo.length === 11) {
@@ -15,61 +15,40 @@ export const whatsappService = {
       const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '1280543321810380';
       const token = config.token || process.env.WHATSAPP_TOKEN;
 
-      const defaultDoramaImage = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80';
-      const headerImage = imageUrl || (templateName === 'dorama' ? defaultDoramaImage : undefined);
-
-      const doSendTemplate = async (includeHeader: boolean) => {
-        const payloadComponents: any[] = [];
-        if (includeHeader && headerImage) {
-          payloadComponents.push({
-            type: 'header',
-            parameters: [{ type: 'image', image: { link: headerImage } }]
-          });
-        }
-        if (params.length > 0 && templateName !== 'dorama') {
-          payloadComponents.push({
-            type: 'body',
-            parameters: params.map(p => ({ type: 'text', text: p }))
-          });
-        }
-
-        const resp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: formattedTo,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: 'pt_BR' },
-              components: payloadComponents
-            }
-          })
+      const components: any[] = [];
+      if (params.length > 0 && templateName !== 'dorama') {
+        components.push({
+          type: 'body',
+          parameters: params.map(p => ({ type: 'text', text: p }))
         });
-        const d = await resp.json();
-        return { ok: resp.ok, data: d };
-      };
-
-      // 1ª tentativa: com header
-      let res = await doSendTemplate(true);
-
-      // Se Meta rejeitar header (ex: template aprovado sem parâmetro de imagem), tenta sem header
-      if (!res.ok) {
-        console.log(`⚠️ Tentativa com header falhou (${res.data.error?.message}). Tentando sem header...`);
-        res = await doSendTemplate(false);
       }
 
-      if (!res.ok) {
-        const errMsg = res.data.error?.message || res.data.error?.error_data?.details || 'Erro ao enviar template na Meta API';
-        console.error('Erro Meta API Template:', res.data);
+      const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: formattedTo,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: 'pt_BR' },
+            components
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = data.error?.message || data.error?.error_data?.details || 'Erro ao enviar template na Meta API';
+        console.error('Erro Meta API Template:', data);
         return { success: false, error: errMsg };
       }
 
-      return { success: true, messageId: res.data.messages?.[0]?.id };
+      return { success: true, messageId: data.messages?.[0]?.id };
     } catch (error: any) {
       console.error('Erro ao enviar mensagem no WhatsApp:', error);
       return { success: false, error: error.message };
