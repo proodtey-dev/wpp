@@ -51,23 +51,66 @@ export const whatsappService = {
                 for (const comp of match.components) {
                   if (comp.type === 'HEADER') {
                     if (comp.format === 'IMAGE') {
-                      // Extrair URL de exemplo do próprio template (Meta retorna em example.header_handle)
-                      let imageUrl = '';
-                      if (comp.example?.header_handle?.[0]) {
-                        imageUrl = comp.example.header_handle[0];
-                        console.log('🖼️ Usando imagem de exemplo do template:', imageUrl);
-                      } else if (comp.example?.header_url?.[0]) {
-                        imageUrl = comp.example.header_url[0];
-                        console.log('🖼️ Usando header_url do template:', imageUrl);
-                      } else {
-                        // Fallback: imagem pública confiável (URL direta sem redirect)
-                        imageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/300px-PNG_transparency_demonstration_1.png';
-                        console.log('⚠️ Template IMAGE sem exemplo, usando fallback genérico');
+                      // Upload imagem para Meta Media API e usar o media_id (evita 403 Forbidden em links externos)
+                      let imageMediaId: string | null = null;
+                      try {
+                        // Tentar usar a URL de exemplo do template
+                        let imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || '';
+                        if (!imgUrl) {
+                          // Gerar uma imagem PNG simples de 1x1 pixel como placeholder
+                          imgUrl = '';
+                        }
+
+                        if (imgUrl) {
+                          console.log('🖼️ Baixando imagem do template para re-upload:', imgUrl);
+                          const imgResp = await fetch(imgUrl);
+                          if (imgResp.ok) {
+                            const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
+                            const uploadResult = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
+                            if (uploadResult.success && uploadResult.mediaId) {
+                              imageMediaId = uploadResult.mediaId;
+                              console.log('✅ Imagem re-uploadada para Meta, mediaId:', imageMediaId);
+                            }
+                          }
+                        }
+
+                        if (!imageMediaId) {
+                          // Criar um PNG mínimo válido (1x1 pixel branco) e fazer upload
+                          console.log('⚠️ Gerando imagem placeholder e fazendo upload para Meta...');
+                          const pngHeader = Buffer.from([
+                            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+                            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+                            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
+                            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE,
+                            0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+                            0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00,
+                            0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
+                            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND chunk
+                            0xAE, 0x42, 0x60, 0x82
+                          ]);
+                          const uploadResult = await whatsappService.uploadMedia(pngHeader, 'image/png', 'placeholder.png', { token: token!, phoneNumberId });
+                          if (uploadResult.success && uploadResult.mediaId) {
+                            imageMediaId = uploadResult.mediaId;
+                            console.log('✅ Placeholder uploadado para Meta, mediaId:', imageMediaId);
+                          }
+                        }
+                      } catch (uploadErr: any) {
+                        console.error('❌ Erro ao fazer upload da imagem:', uploadErr.message);
                       }
-                      components.push({
-                        type: 'header',
-                        parameters: [{ type: 'image', image: { link: imageUrl } }]
-                      });
+
+                      if (imageMediaId) {
+                        components.push({
+                          type: 'header',
+                          parameters: [{ type: 'image', image: { id: imageMediaId } }]
+                        });
+                      } else {
+                        // Último fallback: tentar com link direto mesmo
+                        console.warn('⚠️ Falha no upload, tentando com link direto...');
+                        components.push({
+                          type: 'header',
+                          parameters: [{ type: 'image', image: { link: 'https://placehold.co/800x400.png' } }]
+                        });
+                      }
                     } else if (comp.format === 'VIDEO') {
                       let videoUrl = '';
                       if (comp.example?.header_handle?.[0]) {
