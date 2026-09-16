@@ -271,10 +271,21 @@ router.post('/send', async (req, res) => {
     }
 
     // Send via WhatsApp Cloud API
-    const waResult = await whatsappService.sendTextMessage(phone, body, {
+    let waResult = await whatsappService.sendTextMessage(phone, body, {
       token,
       phoneNumberId
     });
+
+    // Se falhar por causa da janela de 24h Meta (Erro 131047), faz fallback para Template Aprovado
+    if (!waResult.success && (String(waResult.error).includes('24h') || String(waResult.error).includes('131047') || String(waResult.error).includes('re-engagement'))) {
+      console.log(`⚠️ Cliente ${phone} fora da janela de 24h. Alternando automaticamente para Template Meta Aprovado...`);
+      const targetTemplate = body.toLowerCase().includes('dorama') ? 'dorama' : (settings.defaultTemplateName || 'arquiteto');
+      waResult = await whatsappService.sendTemplateMessage(phone, targetTemplate, [contactName || 'Cliente'], {
+        token,
+        phoneNumberId,
+        wabaId: settings.whatsappWabaId
+      });
+    }
 
     const deliveryStatus = waResult.success ? 'sent' : 'failed';
     const errorMsg = waResult.error;
