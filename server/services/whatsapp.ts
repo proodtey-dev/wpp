@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 interface WhatsAppConfig {
   token: string;
   phoneNumberId: string;
@@ -36,101 +39,110 @@ export const whatsappService = {
       let exactPayload: any = null;
       if (wabaId && token) {
         try {
-          const templatesRes = await whatsappService.getTemplates(wabaId, token);
-          if (templatesRes.success && Array.isArray(templatesRes.data)) {
-            const match = templatesRes.data.find((t: any) =>
-              t.name === templateName || t.name.toLowerCase() === templateName.toLowerCase()
-            );
-            if (match) {
-              console.log('🎯 Contrato do Template encontrado no WABA Meta:', match.name, 'Status:', match.status, 'Idioma:', match.language);
-              const components: any[] = [];
-              const actualParams = (params && params.length > 0) ? params : ['Cliente'];
+          const tplUrl = `https://graph.facebook.com/v22.0/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
+          const tplResp = await fetch(tplUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+          const tplData = await tplResp.json();
+          console.log(`🔍 [DEBUG Meta API] Busca por '${templateName}':`, JSON.stringify(tplData));
 
-              if (Array.isArray(match.components)) {
-                console.log('📋 Componentes do template:', JSON.stringify(match.components, null, 2));
-                for (const comp of match.components) {
-                  if (comp.type === 'HEADER') {
-                    if (comp.format === 'IMAGE') {
-                      // Upload imagem para Meta Media API e usar o media_id (evita 403 Forbidden em links externos)
-                      let imageMediaId: string | null = null;
-                      // Mapa de imagens conhecidas por template (configurável)
-                      const knownTemplateImages: Record<string, string> = {
-                        'dorama': 'https://scontent.whatsapp.net/v/t61.29466-34/534425744_1105583282424713_7959374178271364614_n.png?ccb=1-7&_nc_sid=8b1bef&_nc_eui2=AeETqLFZtSLEp716lZ2t5G0Y0qikM-Y2BknSqKQz5jYGSRAVE6pb8jZ3x8JtLb5TzU_KAwoK9bozqrjVbibY20OS&_nc_ohc=MOPYpOBVyTcQ7kNvwG9IWLd&_nc_oc=Adr-u4J5t3jM5duAyfNKsjsIDM88uJWhVIJ6RMMKNLJLd6npC_uvrQhp6zYfRH6Jh4WjIMCu8QMRs4gBQJu0PLTg&_nc_zt=3&_nc_ht=scontent.whatsapp.net&_nc_gid=gCj9SvpSQzSWiuwU3E2JhQ&_nc_ss=7b2a8&oh=01_Q5Aa5gG9_qw0mCc7kb4t80T8BrNbnZI7gxMb0ym8Yb4js_Bayw&oe=6AD23246',
-                      };
-                      try {
-                        // Tentar usar a URL de exemplo do template, depois o mapa de imagens conhecidas
-                        let imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || knownTemplateImages[templateName.toLowerCase()] || '';
+          if (tplData.data && tplData.data.length > 0) {
+            const match = tplData.data[0];
+            console.log(`✅ Template encontrado no Gerenciador Meta: "${match.name}" (status=${match.status}, language=${match.language})`);
+            
+            const components: any[] = [];
+            const actualParams = (params && params.length > 0) ? params : ['Cliente'];
 
-                        if (imgUrl) {
-                          console.log('🖼️ Baixando imagem do template para re-upload:', imgUrl);
-                          const imgResp = await fetch(imgUrl);
-                          if (imgResp.ok) {
-                            const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
-                            const uploadResult = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
-                            if (uploadResult.success && uploadResult.mediaId) {
-                              imageMediaId = uploadResult.mediaId;
-                              console.log('✅ Imagem re-uploadada para Meta, mediaId:', imageMediaId);
-                            }
-                          }
+            if (match.components) {
+              console.log('📋 Componentes do template:', JSON.stringify(match.components, null, 2));
+              for (const comp of match.components) {
+                if (comp.type === 'HEADER') {
+                  if (comp.format === 'IMAGE') {
+                    // Upload imagem para Meta Media API e usar o media_id (evita 403 Forbidden em links externos)
+                    let imageMediaId: string | null = null;
+                    try {
+                      // 1. Procurar arquivo de imagem local em server/assets
+                      const possiblePaths = [
+                        path.join(process.cwd(), 'server', 'assets', `${templateName.toLowerCase()}_header.png`),
+                        path.join(process.cwd(), 'server', 'assets', `${templateName.toLowerCase()}_header.jpg`),
+                        path.join(__dirname, '..', 'assets', `${templateName.toLowerCase()}_header.png`),
+                        path.join(__dirname, '..', 'assets', `${templateName.toLowerCase()}_header.jpg`),
+                      ];
+                      const foundPath = possiblePaths.find(p => fs.existsSync(p));
+
+                      if (foundPath) {
+                        console.log(`📁 Usando imagem local do template: ${foundPath}`);
+                        const imgBuffer = fs.readFileSync(foundPath);
+                        const mimeType = foundPath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+                        const uploadResult = await whatsappService.uploadMedia(imgBuffer, mimeType, path.basename(foundPath), { token: token!, phoneNumberId });
+                        if (uploadResult.success && uploadResult.mediaId) {
+                          imageMediaId = uploadResult.mediaId;
+                          console.log('✅ Imagem local uploadada para Meta, mediaId:', imageMediaId);
                         }
+                      }
 
-                        if (!imageMediaId) {
-                          // Criar um PNG mínimo válido (1x1 pixel branco) e fazer upload
-                          console.log('⚠️ Gerando imagem placeholder e fazendo upload para Meta...');
-                          const pngHeader = Buffer.from([
-                            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-                            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-                            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
-                            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE,
-                            0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
-                            0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00,
-                            0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
-                            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND chunk
-                            0xAE, 0x42, 0x60, 0x82
-                          ]);
-                          const uploadResult = await whatsappService.uploadMedia(pngHeader, 'image/png', 'placeholder.png', { token: token!, phoneNumberId });
+                      // 2. Se não achou localmente, tentar baixar da URL de exemplo
+                      if (!imageMediaId && (comp.example?.header_handle?.[0] || comp.example?.header_url?.[0])) {
+                        const imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0];
+                        console.log('🖼️ Baixando imagem do exemplo do template:', imgUrl);
+                        const imgResp = await fetch(imgUrl);
+                        if (imgResp.ok) {
+                          const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
+                          const uploadResult = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
                           if (uploadResult.success && uploadResult.mediaId) {
                             imageMediaId = uploadResult.mediaId;
-                            console.log('✅ Placeholder uploadado para Meta, mediaId:', imageMediaId);
+                            console.log('✅ Imagem de exemplo uploadada para Meta, mediaId:', imageMediaId);
                           }
                         }
-                      } catch (uploadErr: any) {
-                        console.error('❌ Erro ao fazer upload da imagem:', uploadErr.message);
                       }
 
-                      if (imageMediaId) {
-                        components.push({
-                          type: 'header',
-                          parameters: [{ type: 'image', image: { id: imageMediaId } }]
-                        });
-                      } else {
-                        // Último fallback: tentar com link direto mesmo
-                        console.warn('⚠️ Falha no upload, tentando com link direto...');
-                        components.push({
-                          type: 'header',
-                          parameters: [{ type: 'image', image: { link: 'https://placehold.co/800x400.png' } }]
-                        });
+                      // 3. Fallback: gerar PNG 1x1 se nada mais funcionou
+                      if (!imageMediaId) {
+                        console.log('⚠️ Gerando imagem placeholder e fazendo upload para Meta...');
+                        const pngHeader = Buffer.from([
+                          0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                          0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+                          0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                          0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE,
+                          0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54,
+                          0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00,
+                          0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
+                          0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+                          0xAE, 0x42, 0x60, 0x82
+                        ]);
+                        const uploadResult = await whatsappService.uploadMedia(pngHeader, 'image/png', 'placeholder.png', { token: token!, phoneNumberId });
+                        if (uploadResult.success && uploadResult.mediaId) {
+                          imageMediaId = uploadResult.mediaId;
+                        }
                       }
-                    } else if (comp.format === 'VIDEO') {
-                      let videoUrl = '';
-                      if (comp.example?.header_handle?.[0]) {
-                        videoUrl = comp.example.header_handle[0];
-                      } else {
-                        videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-                      }
+                    } catch (uploadErr: any) {
+                      console.error('❌ Erro ao fazer upload da imagem:', uploadErr.message);
+                    }
+
+                    if (imageMediaId) {
                       components.push({
                         type: 'header',
-                        parameters: [{ type: 'video', video: { link: videoUrl } }]
+                        parameters: [{ type: 'image', image: { id: imageMediaId } }]
                       });
-                    } else if (comp.format === 'TEXT') {
-                      const textMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
-                      if (textMatches.length > 0) {
-                        components.push({
-                          type: 'header',
-                          parameters: textMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
-                        });
-                      }
                     }
+                  } else if (comp.format === 'VIDEO') {
+                    let videoUrl = '';
+                    if (comp.example?.header_handle?.[0]) {
+                      videoUrl = comp.example.header_handle[0];
+                    } else {
+                      videoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
+                    }
+                    components.push({
+                      type: 'header',
+                      parameters: [{ type: 'video', video: { link: videoUrl } }]
+                    });
+                  } else if (comp.format === 'TEXT') {
+                    const textMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
+                    if (textMatches.length > 0) {
+                      components.push({
+                        type: 'header',
+                        parameters: textMatches.map((_: any, idx: number) => ({ type: 'text', text: actualParams[idx] || 'Cliente' }))
+                      });
+                    }
+                  }
                   } else if (comp.type === 'BODY') {
                     const bodyMatches = (comp.text || '').match(/\{\{\d+\}\}/g) || [];
                     if (bodyMatches.length > 0) {
