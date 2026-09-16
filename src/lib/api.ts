@@ -41,12 +41,21 @@ export async function getLeadStats() {
   return fetch(`${API_BASE}/leads/stats`).then(r => r.json());
 }
 
-export async function sendWhatsApp(data: { leadIds: number[], message: string, campaignName: string }) {
-  return fetch(`${API_BASE}/whatsapp/send`, {
+export async function sendWhatsApp(data: any) {
+  const res = await fetch(`${API_BASE}/whatsapp/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  }).then(r => r.json());
+  });
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    if (!res.ok) {
+      throw new Error(`Servidor respondeu com status ${res.status}. Certifique-se que o backend Node está ativo.`);
+    }
+    return { success: true, raw: text };
+  }
 }
 
 export async function getCampaigns() {
