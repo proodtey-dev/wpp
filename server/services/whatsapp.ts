@@ -122,18 +122,6 @@ export const whatsappService = {
                         type: 'header',
                         parameters: [{ type: 'image', image: { id: imageMediaId } }]
                       });
-                    } else if (comp.example?.header_handle?.[0] || comp.example?.header_url?.[0]) {
-                      const fallbackLink = comp.example.header_handle?.[0] || comp.example.header_url?.[0];
-                      components.push({
-                        type: 'header',
-                        parameters: [{ type: 'image', image: { link: fallbackLink } }]
-                      });
-                    } else {
-                      // Fallback final: Link público estável de imagem para templates IMAGE
-                      components.push({
-                        type: 'header',
-                        parameters: [{ type: 'image', image: { link: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800' } }]
-                      });
                     }
                   } else if (comp.format === 'VIDEO') {
                     let videoUrl = '';
