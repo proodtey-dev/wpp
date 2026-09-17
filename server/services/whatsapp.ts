@@ -122,6 +122,13 @@ export const whatsappService = {
                         type: 'header',
                         parameters: [{ type: 'image', image: { id: imageMediaId } }]
                       });
+                    } else {
+                      // Se por algum motivo o upload da mídia falhar, usar link HTTPS direto
+                      console.log('⚠️ imageMediaId nulo, usando imagem de fallback via link direto...');
+                      components.push({
+                        type: 'header',
+                        parameters: [{ type: 'image', image: { link: 'https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png' } }]
+                      });
                     }
                   } else if (comp.format === 'VIDEO') {
                     let videoUrl = '';
@@ -185,19 +192,33 @@ export const whatsappService = {
       }
 
       // Função auxiliar para montar payloads manuais de fallback
-      const buildFallbackPayload = (paramCount: number, lang: string) => {
+      const buildFallbackPayload = (paramCount: number, lang: string, includeImageHeader: boolean = true) => {
         const templateObj: any = {
           name: templateName,
           language: { code: lang }
         };
+        const components: any[] = [];
+
+        if (includeImageHeader) {
+          components.push({
+            type: 'header',
+            parameters: [{ type: 'image', image: { link: 'https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png' } }]
+          });
+        }
+
         if (paramCount > 0) {
           const actualParams = (params && params.length > 0) ? params : ['Cliente'];
           const paramList = Array(paramCount).fill(0).map((_, i) => actualParams[i] || actualParams[0] || 'Cliente');
-          templateObj.components = [{
+          components.push({
             type: 'body',
             parameters: paramList.map(p => ({ type: 'text', text: String(p) }))
-          }];
+          });
         }
+
+        if (components.length > 0) {
+          templateObj.components = components;
+        }
+
         return {
           messaging_product: 'whatsapp',
           to: formattedTo,
