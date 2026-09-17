@@ -79,20 +79,6 @@ export const whatsappService = {
                         }
                       }
 
-                      // 2. Se não achou localmente, tentar baixar da URL de exemplo
-                      if (!imageMediaId && (comp.example?.header_handle?.[0] || comp.example?.header_url?.[0])) {
-                        const imgUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0];
-                        console.log('🖼️ Baixando imagem do exemplo do template:', imgUrl);
-                        const imgResp = await fetch(imgUrl);
-                        if (imgResp.ok) {
-                          const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
-                          const uploadedMediaId = await whatsappService.uploadMedia(imgBuffer, 'image/jpeg', 'template_header.jpg', { token: token!, phoneNumberId });
-                          if (uploadedMediaId) {
-                            imageMediaId = uploadedMediaId;
-                            console.log('✅ Imagem de exemplo uploadada para Meta, mediaId:', imageMediaId);
-                          }
-                        }
-                      }
 
                       // 3. Fallback: gerar PNG 1x1 se nada mais funcionou
                       if (!imageMediaId) {
