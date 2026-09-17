@@ -113,7 +113,7 @@ export const whatsappService = {
                       console.log('⚠️ imageMediaId nulo, usando imagem de fallback via link direto...');
                       components.push({
                         type: 'header',
-                        parameters: [{ type: 'image', image: { link: 'https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png' } }]
+                        parameters: [{ type: 'image', image: { link: `https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png?v=${Date.now()}` } }]
                       });
                     }
                   } else if (comp.format === 'VIDEO') {
@@ -188,7 +188,7 @@ export const whatsappService = {
         if (includeImageHeader) {
           components.push({
             type: 'header',
-            parameters: [{ type: 'image', image: { link: 'https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png' } }]
+            parameters: [{ type: 'image', image: { link: `https://raw.githubusercontent.com/proodtey-dev/wpp/main/server/assets/dorama_header.png?v=${Date.now()}` } }]
           });
         }
 
